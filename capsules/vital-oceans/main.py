@@ -3,6 +3,7 @@ from pathlib import Path
 import tempfile
 import zipfile
 import asyncio
+import json
 import os
 import io
 
@@ -126,10 +127,10 @@ def get_available_paths(data_type: str) -> list[str]:
 
 # --- Download from LafeFS --- #
 
-def download_and_cache_shapefile(sub_path: str) -> Path:
+def download_and_cache_shapefile(sub_path: str) -> dict:
     """
     Downloads shapefile components from LakeFS and saves them to persistent storage.
-    Returns the path to the main .shp file.
+    Returns paths to the main .shp file and its schema.
     """
     lakefs_path = Path("datasets/shapefile") / sub_path
     local_path = DATA_DIR / "shapefile" / sub_path
@@ -140,7 +141,7 @@ def download_and_cache_shapefile(sub_path: str) -> Path:
         local_dir.mkdir(parents=True, exist_ok=True)
 
     # Get shapefile components
-    shapefile_extensions = {".shp", ".shx", ".dbf", ".prj", ".cpg", ".csv"}
+    shapefile_extensions = {".shp", ".shx", ".dbf", ".prj", ".cpg", ".csv", ".json"}
     prefix = str(lakefs_path.parent)
 
     shapefile_objects = []
@@ -165,10 +166,15 @@ def download_and_cache_shapefile(sub_path: str) -> Path:
             with open(file_path, "wb") as f:
                 f.write(r.read())
 
+    # TODO: This error should raise if one or more of the non-optional shape components is missing
     if not local_path.exists():
         raise FileNotFoundError(f"Main .shp file not downloaded: {local_path}")
 
-    return local_path
+    local_paths = {
+        "shapefile": local_path,
+        "schema": local_path.parent / (str(local_path.stem) + ".json")
+    }
+    return local_paths
 
 def download_and_cache_netcdf(sub_path: str) -> Path:
     """
@@ -226,19 +232,26 @@ def download_and_cache_csv(sub_path: str) -> Path:
 
     return local_path
 
-def load_shapefile_to_gdf(sub_path: str) -> gpd.GeoDataFrame:
+def load_shapefile_to_gdf(sub_path: str) -> dict:
     """
     Loads a shapefile from cache into a GeoDataFrame.
     """
     if sub_path not in CACHE:
-        local_path = download_and_cache_shapefile(sub_path)
+        local_paths = download_and_cache_shapefile(sub_path)
 
-        # Procees data file
-        gdf = gpd.read_file(local_path).to_crs("EPSG:4326")
+        # Read and procees data files
+        schema = {}
+        try:
+            with open(local_paths["schema"]) as f:
+                schema = json.load(f)
+        except FileNotFoundError:
+            pass
+
+        gdf = gpd.read_file(local_paths["shapefile"]).to_crs("EPSG:4326")
         gdf = gdf[gdf.geometry.notnull() & gdf.geometry.is_valid]
 
         # Add to cache 
-        CACHE[sub_path] = gdf
+        CACHE[sub_path] = gdf, schema
         print(f"Loaded and cached shapefile data at: {sub_path}")
     
     return CACHE[sub_path]
@@ -317,14 +330,14 @@ async def initialize_data():
     # Pre-load common files to avoid long startup times
 
     common_shapefiles = [
-        "socioeconomico/pesca.shp",
-        "socioeconomico/turismo.shp",
-        "meteorologia/ciclones",
-        "habitats/cenotes",
-        "habitats/corales",
-        "habitats/humedales",
-        "habitats/kelp",
-        "habitats/manglares",
+        #"socioeconomico/pesca.shp",
+        #"socioeconomico/turismo.shp",
+        #"meteorologia/ciclones",
+        #"habitats/cenotes",
+        #"habitats/corales",
+        #"habitats/humedales",
+        #"habitats/kelp",
+        #"habitats/manglares",
         ]
     for shapefile in common_shapefiles:
         if shapefile in available_shapefiles:
@@ -415,101 +428,58 @@ def get_csv_binary(sub_path: str, context: Context):
 # --- Tools --- #
 
 @mcp.tool()
-async def show_available_datasets(data_type: str, context: Context) -> str:
+async def show_available_paths(file_type: str, context: Context) -> list:
     """
-    Generates a tree-like string showing available dataset paths.
+    Gets available paths for the given file type.
 
     Parameters
     ----------
-    data_type : str
+    file_type : str
         The file type.
         Supported options are: 'csv', 'shapefile', 'netcdf'
 
-    Returns:
-    --------
-    str
-        Tree structure of available datasets.
+    Returns
+    -------
+    list
+        List with available dataset paths.
     """
-    paths = get_available_paths(data_type)
+    return get_available_paths(file_type.lower())
 
-    if not paths:
-        raise ValueError(f"No {data_type} files found.")
-
-    tree = {}
-    for path in paths:
-        parts = path.split('/')
-        current = tree
-        for i, part in enumerate(parts):
-            if i == len(parts) - 1:
-                current[part] = None
-            else:
-                current = current.setdefault(part, {})
-
-    lines = []
-
-    def print_tree(node, prefix=""):
-        items = list(node.items())
-        for i, (name, children) in enumerate(items):
-            is_last = (i == len(items) - 1)
-            current_prefix = "└── " if is_last else "├── "
-            next_prefix = "    " if is_last else "│   "
-
-            if children is None:
-                lines.append(f"{prefix}{current_prefix}{name}")
-            else:
-                lines.append(f"{prefix}{current_prefix}{name}/")
-                print_tree(children, prefix + next_prefix)
-
-    for i, (name, children) in enumerate(tree.items()):
-        if children is None:
-            lines.append(f"{name}")
-        else:
-            lines.append(f"{name}/")
-            print_tree(children, prefix="")
-
-    icon = {
-        "csv": "📊",
-        "shapefile": "🗺️",
-        "netcdf": "🌐"
-    }.get(data_type, "📄")
-
-    lines.append(f"\n{icon} Total {data_type} datasets: {len(paths)}")
-
-    return "\n".join(lines)
+from utils import parse_coordinates, make_gdf_summary
 
 @mcp.tool()
-async def query_shapefile(
-    shapefile_path: str,
-    polygon_coords: list[dict],
+async def get_shapefile_summary(
+    path: str,
+    coords: list[dict],
     context: Context
-    ) -> str:
+    ) -> int:
     """
-    Retrieves records from a geospatial dataset (shapefile)
+    Retrieves records from a geospatial dataset (Shapefile)
     whose geometries intersect a given polygon.
-    To explore available shapefiles, use `show_available_datasets('shapefile')` beforehand.
+    Recommendations
+    ---------------
+    Use `show_available_paths('shapefile')` beforehand, to explore available Shapefiles.
 
     Parameters
     ----------
-    shapefile_path : str
-        Path to the shapefile to query.
-    polygon_coords : list of dict
+    path : str
+        Path to the shapefile.
+    coords : list of dict
         List of coordinates pairs in {"lat": float, "lng": float} format
         representing the vertices of the polygon.
 
-    Returns:
-    --------
-    str
-        Plain-text summary of matching records.
+    Returns
+    -------
+    int
+        Number of matching records.
     """
-
-    from utils import parse_coordinates, make_gdf_summary
     
     # Load Shapefile
-    gdf = load_shapefile_to_gdf(shapefile_path)
+    gdf, schema = load_shapefile_to_gdf(path)
     
     # Define polygon
-    polygon_coords = parse_coordinates(polygon_coords)
-    polygon = Polygon(polygon_coords)
+    coords = parse_coordinates(coords)
+    polygon = Polygon(coords)
     
     if not polygon.is_valid:
         raise ValueError("Invalid polygon. Ensure the coordinates form a valid polygon.")
@@ -520,53 +490,56 @@ async def query_shapefile(
     if matches.empty:
         raise ValueError("No records were found within the specified polygon.")
 
-    return make_gdf_summary(matches)
+    return make_gdf_summary(matches, schema, top_n=5)
+
+from utils import parse_coordinates
 
 @mcp.tool()
-async def query_netcdf(
-    netcdf_path: str,
-    polygon_coords: list[dict],
-    agg_func: str,
+async def get_netcdf_stats(
+    path: str,
+    mode: str,
+    coords: list[dict],
     context: Context
     ) -> dict:
     """
-    Aggregates records from a geospatial dataset (netcdf)
+    Makes statistical summary of records from a geospatial dataset (NetCDF)
     whose geometries intersect a given polygon.
-    To explore available netcdf files, use `show_available_datasets('netcdf')` beforehand.
+    Recommendation
+    --------------
+    Use `show_available_paths('netcdf')` beforehand, to explore available NetCDF files.
 
     Parameters
     ----------
-    netcdf_path : str
+    path : str
         Path to the NetCDF file.
-    polygon_coords : list of dict
+    mode : str
+        Output mode: 'summary' for statistics (mean, median, std, min and max),
+        or 'series' for raw values.
+    coords : list of dict
         List of coordinates pairs in {"lat": float, "lng": float} format
         representing the vertices of the polygon.
-    agg_func : str
-        Aggregation function to apply.
-        Supported options are: 'mean', 'median', 'sum', 'std', 'min', 'max', or 'series'.
 
     Returns
     -------
     dict
-        Dict containing the aggregated value of the variable within the polygon.
+        Dict containing summary stats or value series.
     """
-
-    from utils import parse_coordinates
     
-    # Supported aggregation functions
-    allowed_funcs = ['mean', 'median', 'sum', 'std', 'min', 'max', 'series']
-    if agg_func not in allowed_funcs:
+    # Validate mode
+    allowed_modes = ['summary', 'series']
+    mode = mode.lower()
+    if mode not in allowed_modes:
         raise ValueError(
-            f"Aggregation function '{agg_func}' is not supported.\n"
-            f"Supported options are: {allowed_funcs}."
+            f"Mode '{mode}' is not supported.\n"
+            f"Supported options are: {allowed_modes}."
         )
 
     # Load NetCDF
-    nc_data = load_netcdf_data(netcdf_path)
+    nc_data = load_netcdf_data(path)
     gdf = nc_data.get("gdf")
 
     # Define polygon
-    polygon = Polygon(parse_coordinates(polygon_coords))
+    polygon = Polygon(parse_coordinates(coords))
     if not polygon.is_valid:
         raise ValueError("Invalid polygon. Ensure the coordinates form a valid polygon.")
     
@@ -588,11 +561,22 @@ async def query_netcdf(
         "units": nc_data.get("units"),
     }
 
-    if agg_func == 'series':
-        output["series"] = filtered_values.tolist()
-    else:
-        result = getattr(np, "nan" + agg_func)(filtered_values)
-        output[agg_func] = round(float(result),2)
+    if mode == 'series':
+        series = filtered_values.tolist()
+        max_values = 30
+        output["series"] = [round(v, 2) for v in series[:max_values]]
+        if len(series) > max_values:
+            output["series"].append("...")
+            output["length_warning"] = f"{len(series) - max_values} more values not shown"
+
+    elif mode == 'summary':
+        output["summary"] = {
+            "mean": round(float(np.nanmean(filtered_values)), 2),
+            "median": round(float(np.nanmedian(filtered_values)), 2),
+            "std": round(float(np.nanstd(filtered_values)), 2),
+            "min": round(float(np.nanmin(filtered_values)), 2),
+            "max": round(float(np.nanmax(filtered_values)), 2)
+        }
 
     # NaN summary
     nan_count = int(np.isnan(filtered_values).sum())
@@ -602,14 +586,17 @@ async def query_netcdf(
     return output
 
 @mcp.tool()
-async def get_csv_schema(csv_path: str, context={}) -> str:
+async def get_csv_schema(path: str, context={}) -> str:
     """
-    Return the schema (columns and dtypes) for the CSV file.
+    Returns the schema (columns and dtypes) for the CSV file.
+    Recommendations
+    ---------------
+    Use `show_available_paths('csv')` beforehand, to explore available CSV files.
 
     Parameters
     ----------
-    csv_path : str
-        Path to the csv to explore.
+    path : str
+        Path to the CSV file.
 
     Returns
     -------
@@ -618,9 +605,9 @@ async def get_csv_schema(csv_path: str, context={}) -> str:
     """
 
     # Load CSV
-    df = load_csv_to_df(csv_path)
+    df = load_csv_to_df(path)
 
-    table_name = Path(csv_path).stem
+    table_name = Path(path).stem
     column_info = []
 
     for col in df.columns:
@@ -650,32 +637,39 @@ async def get_csv_schema(csv_path: str, context={}) -> str:
 
     return f"{table_name}:\n  - " + "\n  - ".join(column_info)
 
+from utils import enforce_limit, create_count_query
+
 @mcp.tool()
-async def query_csv(csv_path: str, sql_query: str, context: Context) -> str:
+async def query_csv(
+    path: str,
+    sql_query: str,
+    context: Context
+    ) -> str:
     """
     Executes an SQL query on a CSV using SQLite syntax and returns up to 10 rows of query results.
-    To explore available csv files, use `show_available_datasets('csv')` beforehand.
+    Recommendations
+    ---------------
+    - Use `show_available_paths('csv')` beforehand, to explore available CSV files.
+    - Then, use `get_csv_schema` to inspect the structure and fields the CSV before querying.
 
     Parameters
     ----------
-    csv_path : str
-        Path to the csv to query.
+    path : str
+        Path to the CSV file.
     sql_query : str
         The SQL query to execute.
-        The FROM clause should reference the table name, which is the stem of the csv_path.
+        The FROM clause should reference the table name, which is the stem of the path.
 
-    Returns:
-    --------
+    Returns
+    -------
     str
         The first 10 rows of the query result formatted as a CSV string.
         If more rows exist, a note is added at the end indicating how many rows were not shown.
     """
 
-    from utils import enforce_limit, create_count_query
-
     # Load CSV
-    df = load_csv_to_df(csv_path)
-    table_name = Path(csv_path).stem
+    df = load_csv_to_df(path)
+    table_name = Path(path).stem
     database = {table_name: df}
 
     # Calculate total count efficiently using COUNT(*)
@@ -684,7 +678,7 @@ async def query_csv(csv_path: str, sql_query: str, context: Context) -> str:
     total_count = count_result.iloc[0, 0]
     
     # Execute query with enforced LIMIT
-    parsed_query = enforce_limit(sql_query)
+    parsed_query = enforce_limit(sql_query, max_limit=30)
     query_result = ps.sqldf(parsed_query, database)
     
     if query_result.empty:
@@ -699,16 +693,18 @@ async def query_csv(csv_path: str, sql_query: str, context: Context) -> str:
     
     return query_result
 
+from utils import parse_coordinates, format_metric
+
 @mcp.tool()
 async def calculate_geodesic_area(
-    polygon_coords: list[dict],
+    coords: list[dict],
     context: Context) -> str:
     """
     Calculate the geodesic area of a polygon.
 
     Parameters
     ----------
-    polygon_coords : list of dict
+    coords : list of dict
         List of coordinates pairs in {"lat": float, "lng": float} format
         representing the vertices of the polygon.
 
@@ -718,13 +714,11 @@ async def calculate_geodesic_area(
         Area in m² or km².
     """
 
-    from utils import parse_coordinates, format_metric
-
     geod = Geod(ellps="WGS84")
 
     # Define polygon
-    polygon_coords = parse_coordinates(polygon_coords)
-    polygon = Polygon(polygon_coords)
+    coords = parse_coordinates(coords)
+    polygon = Polygon(coords)
     
     if not polygon.is_valid:
         raise ValueError("Invalid polygon. Ensure the coordinates form a valid polygon.")
@@ -734,14 +728,14 @@ async def calculate_geodesic_area(
 
 @mcp.tool()
 async def calculate_geodesic_perimeter(
-    polygon_coords: list[dict],
+    coords: list[dict],
     context: Context) -> str:
     """
     Calculate the geodesic perimeter of a polygon.
 
     Parameters
     ----------
-    polygon_coords : list of dict
+    coords : list of dict
         List of coordinates pairs in {"lat": float, "lng": float} format
         representing the vertices of the polygon.
 
@@ -750,14 +744,12 @@ async def calculate_geodesic_perimeter(
     str
         Perimeter in m or km.
     """
-
-    from utils import parse_coordinates, format_metric
     
     geod = Geod(ellps="WGS84")
 
     # Define polygon
-    polygon_coords = parse_coordinates(polygon_coords)
-    polygon = Polygon(polygon_coords)
+    coords = parse_coordinates(coords)
+    polygon = Polygon(coords)
     
     if not polygon.is_valid:
         raise ValueError("Invalid polygon. Ensure the coordinates form a valid polygon.")

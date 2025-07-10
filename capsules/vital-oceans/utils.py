@@ -8,64 +8,58 @@ import io
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-
 import mo_sql_parsing as mosp
 
 def parse_coordinates(coordinates):
     return [(pair["lng"], pair["lat"]) for pair in coordinates]
 
-def make_gdf_summary(gdf: gpd.GeoDataFrame, top_n: int = 3, max_fields: int = 3) -> str:
+def make_gdf_summary(gdf: gpd.GeoDataFrame, schema: dict, top_n: int) -> str:
+    """
+    Generates a summary of a GeoDataFrame based on a provided schema.
+    """
+    summary_parts = ["🔍 **Summary:**"]
     total = len(gdf)
-    summary_parts = [f"🔍 **Resumen de resultados:**", f"- Total de registros encontrados: {total}"]
+    summary_parts.append(f"- Total records found: {total}")
 
-    columns = [col for col in gdf.columns if col != 'geometry']
+    for var_spec in schema.get("variables", []):
+        var_name = var_spec.get("name")
+        var_type = var_spec.get("type")
 
-    skip_keywords = [
-        'id', 'clave', 'codigo', 'correo', 'email', 'fecha', 'numero', 'number',
-        'letra', 'letter', 'latitud', 'longitud', 'layer', 'campo', '_g2', '_g3',
-        'rep_', 'no_', '_auth', 'iso', '_eng', 
-    ]
-    priority_keywords = ['nombre', 'municipio', 'region', 'actividad', 'localidad', 'estado']
-
-    def skip_col_name(col):
-        return any(kw in col.lower() for kw in skip_keywords)
-
-    def skip_col_values(series):
-        top_vals = series.dropna().astype(str).value_counts().head(top_n).index
-        for val in top_vals:
-            if any(kw in val.lower() for kw in skip_keywords):
-                return True
-        return False
-
-    def is_priority(col):
-        return any(kw in col.lower() for kw in priority_keywords)
-
-    def is_acronym_category(series: pd.Series, threshold: int = 3) -> bool:
-        top_vals = series.value_counts().head(threshold).index
-        count_acronyms = sum(
-            isinstance(val, str) and len(val) <= 5 and val.isupper() and val.isalpha()
-            for val in top_vals
-        )
-        return count_acronyms >= threshold
-
-    cat_cols_added = 0
-    for col in columns:
-        series = gdf[col]
-        if skip_col_name(col):
+        if var_name not in gdf.columns:
+            #print(f"⚠️ Col `{var_name}` not found.")
             continue
-        if not (pd.api.types.is_object_dtype(series) or pd.api.types.is_categorical_dtype(series)):
-            continue
-        if is_acronym_category(series):
-            continue
-        if skip_col_values(series):
-            continue
-        top_vals = series.value_counts().head(top_n)
-        if top_vals.empty or top_vals.max() <= 1:
-            continue
-        summary_parts.append(f"- Top valores en `{col}`: {top_vals.to_dict()}")
-        cat_cols_added += 1
-        if cat_cols_added >= max_fields and not is_priority(col):
-            break
+
+        series = gdf[var_name].dropna()
+
+        if var_type == "text":
+            top_vals = series.astype(str).value_counts().head(top_n).to_dict()
+            summary_parts.append(f"- Categories in `{var_name}`: {top_vals}")
+
+        elif var_type == "number":
+            agg_func = var_spec.get("agg", "mean")
+            if not pd.api.types.is_numeric_dtype(series):
+                #print(f"⚠️ Col `{var_name}` is not a number.")
+                continue
+
+            try:
+                agg_map = {
+                    "count": series.count,
+                    "mean": series.mean,
+                    "sum": series.sum,
+                    "min": series.min,
+                    "max": series.max,
+                    "std": series.std,
+                }
+
+                if agg_func not in agg_map:
+                    #print(f"⚠️ `{agg_func}` is not a valid agg function for variable `{var_name}`")
+                    continue
+
+                result = agg_map[agg_func]()
+                summary_parts.append(f"- `{agg_func}` of `{var_name}`: {result:.2f}" if isinstance(result, float) else f"- `{agg_func}` of `{var_name}`: {result}")
+
+            except Exception as e:
+                print(f"⚠️ Error computing `{agg_func}` for `{var_name}`: {e}")
 
     return "\n".join(summary_parts)
 
