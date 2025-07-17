@@ -4,7 +4,6 @@ import os
 from mcp.server.fastmcp.prompts import base
 from transformers import PretrainedConfig
 from dataclasses import dataclass
-from bs4 import BeautifulSoup
 from typing import List, Dict, Any
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
@@ -81,55 +80,47 @@ async def get_specific_model_insights(model_name: str):
 
 
 @mcp.tool()
-async def get_models() -> str:
+async def get_models(leaderboard_type: str = "overall") -> str:
     """
-    Fetches a list of popular models.
+    Reads and returns the leaderboard data from local markdown files.
+
+    Args:
+        leaderboard_type (str): The type of leaderboard to read.
+                               Available options: 'overall', 'coding', 'english', 'math', 'spanish'.
+                               Defaults to 'overall'.
+
+    Returns:
+        str: The contents of the specified leaderboard markdown file.
     """
-    url = "https://lmarena.ai/leaderboard/text"
-    headers = {
-        # Typical Chrome User-Agent (can be swapped for any modern browser UA)
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/115.0.0.0 Safari/537.36"
-        )
+    import os
+
+    # Map leaderboard types to file names
+    leaderboard_files = {
+        "overall": "overall_leaderboard.md",
+        "coding": "coding_leaderboard.md",
+        "english": "english_leaderboard.md",
+        "math": "math_leaderboard.md",
+        "spanish": "spanish_leaderboard.md",
     }
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        resp = await client.get(url, headers=headers)
-        resp.raise_for_status()
-        html = resp.text
-
-    soup = BeautifulSoup(html, "html.parser")
-    table = soup.find("table")
-
-    if table is None:
-        raise RuntimeError(
-            "Could not find any <table> tag on LMArena Text leaderboard page."
+    # Validate leaderboard type
+    if leaderboard_type not in leaderboard_files:
+        available_types = ", ".join(leaderboard_files.keys())
+        raise ValueError(
+            f"Invalid leaderboard_type '{leaderboard_type}'. Available options: {available_types}"
         )
 
-    header_cells = table.find("thead").find_all("th")
-    headers = [th.get_text(strip=True) for th in header_cells]
+    # Get the file path
+    leaderboard_file = leaderboard_files[leaderboard_type]
+    file_path = os.path.join("leaderboards", leaderboard_file)
 
-    body_rows = table.find("tbody").find_all("tr")
-    rows: list[list[str]] = []
-    md = []
-    for tr in body_rows:
-        # Some rows might have nested tags—extract text only
-        cell_texts = [td.get_text(strip=True) for td in tr.find_all("td")]
-        if cell_texts:
-            rows.append(cell_texts)
+    # Check if file exists
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Leaderboard file '{file_path}' not found.")
 
-        md = []
-
-    md.append("| " + " | ".join(headers) + " |")
-
-    md.append("| " + " | ".join("---" for _ in headers) + " |")
-
-    for row in rows:
-        md.append("| " + " | ".join(row) + " |")
-
-    return "\n".join(md)
+    # Read and return the file contents
+    with open(file_path, "r", encoding="utf-8") as f:
+        return f.read()
 
 
 @mcp.tool()
@@ -215,6 +206,41 @@ async def get_insights_use_case(query: str) -> List[Dict[str, Any]]:
         metadata = item.get("metadata", {})
         insights.append({"pageContent": page_content, "metadata": metadata})
     return insights
+
+
+@mcp.tool()
+async def get_runtime_consumption(tags: List[str]) -> List[Dict[str, Any]]:
+    """
+    Check for a given set of tags the runtime consumption with similar assistants that were previously run.
+    Args:
+        tags (List[str]): A list of tags to filter by. Returns entries that contain any of these tags.
+
+    Returns:
+        List[Dict[str, Any]]: A list of matching specifications from the runtime-consumption.json file.
+    """
+    import json
+    import os
+
+    json_file_path = "docs/runtime-consumption.json"
+
+    if not os.path.exists(json_file_path):
+        return []
+
+    try:
+        with open(json_file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return []
+
+    stress_test_data = data.get("stress_test_resource_usage", [])
+    matching_specs = []
+
+    for spec in stress_test_data:
+        spec_tags = spec.get("type", [])
+        if any(tag.upper() in [t.upper() for t in spec_tags] for tag in tags):
+            matching_specs.append(spec)
+
+    return matching_specs
 
 
 if __name__ == "__main__":

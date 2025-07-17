@@ -1,0 +1,99 @@
+{
+  "stress_test_resource_usage": [
+    {
+      "assistant": "Copilot",
+      "type": ["REASONING", "AGENTIC"],
+      "scenario": {
+        "users": 100,
+        "period": "2 minutes"
+      },
+      "results": {
+        "Evaluator": {
+          "replicas": 1,
+          "memory_mib": 704,
+          "cpu": 0.93
+        },
+        "Hermes": {
+          "replicas": 3,
+          "memory_mib": 1000,
+          "cpu": "1.2 cores"
+        },
+        "Leviathan": {
+          "replicas": 1,
+          "memory_mib": 1500,
+          "cpu": "1.2 cores"
+        },
+        "Tools": {
+          "replicas": 1,
+          "memory_mib": 554,
+          "cpu": "0.8 cores"
+        }
+      }
+    },
+    {
+      "assistant": "Alquimia twyd",
+      "type": ["RAG"],
+      "scenario": {
+        "users": 100,
+        "period": "2 minutes"
+      },
+      "results": {
+        "Evaluator": {
+          "replicas": 1,
+          "memory_mib": 742,
+          "cpu": 0.93
+        },
+        "Hermes": {
+          "replicas": 2,
+          "memory_mib": 800,
+          "cpu": "1 core"
+        },
+        "Leviathan": {
+          "replicas": 1,
+          "memory_mib": 1500,
+          "cpu": "1.2 cores"
+        },
+        "Tools": {
+          "replicas": 1,
+          "memory_mib": 554,
+          "cpu": "0.8 cores"
+        }
+      }
+    },
+    {
+      "assistant": "Alquimia use case",
+      "type": ["MCP", "RAG", "AGENTIC", "REASONING"],
+      "scenario": {
+        "users": 100,
+        "period": "2 minutes"
+      },
+      "results": {
+        "Evaluator": {
+          "replicas": 1,
+          "memory_mib": 742,
+          "cpu": 0.66
+        },
+        "Hermes": {
+          "replicas": 2,
+          "memory_mib": 800,
+          "cpu": "1.2 cores"
+        },
+        "Leviathan": {
+          "replicas": 1,
+          "memory_mib": 1500,
+          "cpu": "1.2 cores"
+        },
+        "Tools": {
+          "replicas": 1,
+          "memory_mib": 564,
+          "cpu": "0.8 cores"
+        },
+        "MCP": {
+          "replicas": 1,
+          "memory_mib": 545,
+          "cpu": "0.03 cores"
+        }
+      }
+    }
+  ]
+}
