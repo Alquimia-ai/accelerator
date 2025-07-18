@@ -20,12 +20,12 @@ spec:
             - containerPort: 8000
           env:
             - name: HUGGINGFACE_API_KEY
-              value: "YOUR_API_KEY"
+              value: YOUR_API_KEY
             - name: TWYD_API_KEY
-              value: "YOUR_API_KEY"
+              value: YOUR_API_KEY
             - name: TWYD_API_URL
-              value: "YOUR_API_URL"
+              value: YOUR_API_URL
             - name: TWYD_TOPIC_ID
-              value: ""
+              value: "42"
             - name: HUGGINGFACE_HUB_CACHE
               value: /tmp/huggingface/hub

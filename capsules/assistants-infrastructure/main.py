@@ -76,7 +76,13 @@ async def get_specific_model_insights(model_name: str):
     async with httpx.AsyncClient() as client:
         response = await client.get(url, headers=headers)
         response.raise_for_status()
-        return response.json()
+        results = response.json()
+        
+        # Handle empty or invalid responses
+        if not results or not isinstance(results, list):
+            return [{"error": f"No model found with name '{model_name}'. Please check the model name and try again."}]
+        
+        return results
 
 
 @mcp.tool()
@@ -169,9 +175,16 @@ async def get_hardware_requirements(
 
     total_needed_gib = round(rounded_taken_space_parameters + kv_required_gib, 3)
 
-    parameters_loading = f"{model_id} requires {rounded_taken_space_parameters} GiB for parameters and {kv_required_gib} GiB for KV cache f({desired_context_window} Context Window), totaling {total_needed_gib} GiB."
-
-    return parameters_loading
+    return {
+        "model_id": model_id,
+        "model_size_params": model_size,
+        "context_window": desired_context_window,
+        "parameters_gib": rounded_taken_space_parameters,
+        "kv_cache_gib": kv_required_gib,
+        "total_gib": total_needed_gib,
+        "hidden_size": hidden_size,
+        "hidden_layers": hidden_layers
+    }
 
 
 @mcp.tool()
@@ -201,10 +214,26 @@ async def get_insights_use_case(query: str) -> List[Dict[str, Any]]:
         results = resp.json()
 
     insights: List[Dict[str, Any]] = []
+    
+    # Handle empty or invalid responses
+    if not results or not isinstance(results, list):
+        return [{
+            "pageContent": f"No insights found for query: '{query}'. Please try a different search term or check if the query is specific enough.",
+            "metadata": {"status": "no_results", "query": query}
+        }]
+    
     for item in results:
         page_content = item.get("pageContent", "")
         metadata = item.get("metadata", {})
         insights.append({"pageContent": page_content, "metadata": metadata})
+    
+    # Return a helpful message if no insights were found
+    if not insights:
+        return [{
+            "pageContent": f"No insights found for query: '{query}'. Please try a different search term or check if the query is specific enough.",
+            "metadata": {"status": "no_results", "query": query}
+        }]
+    
     return insights
 
 

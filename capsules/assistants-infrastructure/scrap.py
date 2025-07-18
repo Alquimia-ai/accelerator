@@ -89,19 +89,42 @@ async def scrape_and_create_markdown(name, url):
     rows: list[list[str]] = []
     
     for tr in body_rows:
-        cell_texts = [td.get_text(strip=True) for td in tr.find_all("td")]
+        tds = tr.find_all("td")
+        cell_texts = []
+        for td in tds:
+            # Remove <title> tags from <svg> elements to avoid duplication
+            for svg in td.find_all("svg"):
+                for title in svg.find_all("title"):
+                    title.decompose()
+            cell_texts.append(td.get_text(strip=True))
         if cell_texts and len(cell_texts) >= 7:
             license_type = cell_texts[-1]
             if license_type.lower() != "proprietary":
-                rows.append(cell_texts)
+                # Extract article link from the model name (typically in the second column)
+                article_link = ""
+                if len(tds) > 1:  # Make sure we have at least 2 columns
+                    model_cell = tds[1]  # Model name is typically in the second column
+                    link_tag = model_cell.find("a")
+                    if link_tag and link_tag.get("href"):
+                        article_link = link_tag.get("href")
+                        # Convert relative URLs to absolute URLs
+                        if article_link.startswith("/"):
+                            article_link = "https://lmarena.ai" + article_link
+                
+                # Add the article link to the row data
+                row_with_link = cell_texts + [article_link]
+                rows.append(row_with_link)
 
     current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     md = []
     md.append(f"# {name} Leaderboard\n")
     md.append(f"*Data scraped on: {current_date}*\n")
-    md.append("| " + " | ".join(headers) + " |")
-    md.append("| " + " | ".join("---" for _ in headers) + " |")
+    
+    # Add "Article Link" to the headers
+    headers_with_link = headers + ["Article Link"]
+    md.append("| " + " | ".join(headers_with_link) + " |")
+    md.append("| " + " | ".join("---" for _ in headers_with_link) + " |")
 
     for row in rows:
         md.append("| " + " | ".join(row) + " |")
