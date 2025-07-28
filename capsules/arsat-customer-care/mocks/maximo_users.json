@@ -398,6 +398,84 @@
           "rowstamp": "35608308143",
           "Attributes": {
             "DISPLAYNAME": {
+              "content": "Ulises"
+            },
+            "FIRSTNAME": {
+              "content": "Marcelo"
+            },
+            "LASTNAME": {
+              "content": "Ricardo"
+            },
+            "PERSONID": {
+              "content": "MRUlises"
+            },
+            "PERSONUID": {
+              "content": 836100,
+              "resourceid": true
+            },
+            "PLUSPCUSTOMER": {
+              "content": "CT-20359960311"
+            },
+            "PRIMARYEMAIL": {
+              "content": "ulises@alquimia.ai"
+            },
+            "PRIMARYPHONE": {
+              "content": "56994869621"
+            },
+            "STATUS": {
+              "content": "ACTIVO"
+            },
+            "STATUSDATE": {
+              "content": "2016-05-17T11:59:20-03:00"
+            },
+            "STATUSIFACE": {
+              "content": false
+            },
+            "TITLE": {
+              "content": "Test account"
+            }
+          },
+          "RelatedMbos": {
+            "PHONE": [
+              {
+                "rowstamp": "966057510",
+                "Attributes": {
+                  "ISPRIMARY": {
+                    "content": true
+                  },
+                  "PHONEID": {
+                    "content": 35589,
+                    "resourceid": true
+                  },
+                  "PHONENUM": {
+                    "content": "5491138702720"
+                  }
+                }
+              }
+            ],
+            "EMAIL": [
+              {
+                "rowstamp": "966057509",
+                "Attributes": {
+                  "EMAILADDRESS": {
+                    "content": "ulises@alquimia.ai"
+                  },
+                  "EMAILID": {
+                    "content": 6903836,
+                    "resourceid": true
+                  },
+                  "ISPRIMARY": {
+                    "content": true
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "rowstamp": "35608308143",
+          "Attributes": {
+            "DISPLAYNAME": {
               "content": "NOEL Maria"
             },
             "FIRSTNAME": {
