@@ -77,11 +77,15 @@ async def get_specific_model_insights(model_name: str):
         response = await client.get(url, headers=headers)
         response.raise_for_status()
         results = response.json()
-        
+
         # Handle empty or invalid responses
         if not results or not isinstance(results, list):
-            return [{"error": f"No model found with name '{model_name}'. Please check the model name and try again."}]
-        
+            return [
+                {
+                    "error": f"No model found with name '{model_name}'. Please check the model name and try again."
+                }
+            ]
+
         return results
 
 
@@ -175,16 +179,9 @@ async def get_hardware_requirements(
 
     total_needed_gib = round(rounded_taken_space_parameters + kv_required_gib, 3)
 
-    return {
-        "model_id": model_id,
-        "model_size_params": model_size,
-        "context_window": desired_context_window,
-        "parameters_gib": rounded_taken_space_parameters,
-        "kv_cache_gib": kv_required_gib,
-        "total_gib": total_needed_gib,
-        "hidden_size": hidden_size,
-        "hidden_layers": hidden_layers
-    }
+    parameters_loading = f"{model_id} requires {rounded_taken_space_parameters} GiB for parameters and {kv_required_gib} GiB for KV cache f({desired_context_window} Context Window), totaling {total_needed_gib} GiB."
+
+    return parameters_loading
 
 
 @mcp.tool()
@@ -214,62 +211,60 @@ async def get_insights_use_case(query: str) -> List[Dict[str, Any]]:
         results = resp.json()
 
     insights: List[Dict[str, Any]] = []
-    
+
     # Handle empty or invalid responses
     if not results or not isinstance(results, list):
-        return [{
-            "pageContent": f"No insights found for query: '{query}'. Please try a different search term or check if the query is specific enough.",
-            "metadata": {"status": "no_results", "query": query}
-        }]
-    
+        return [
+            {
+                "pageContent": f"No insights found for query: '{query}'. Please try a different search term or check if the query is specific enough.",
+                "metadata": {"status": "no_results", "query": query},
+            }
+        ]
+
     for item in results:
         page_content = item.get("pageContent", "")
         metadata = item.get("metadata", {})
         insights.append({"pageContent": page_content, "metadata": metadata})
-    
+
     # Return a helpful message if no insights were found
     if not insights:
-        return [{
-            "pageContent": f"No insights found for query: '{query}'. Please try a different search term or check if the query is specific enough.",
-            "metadata": {"status": "no_results", "query": query}
-        }]
-    
+        return [
+            {
+                "pageContent": f"No insights found for query: '{query}'. Please try a different search term or check if the query is specific enough.",
+                "metadata": {"status": "no_results", "query": query},
+            }
+        ]
+
     return insights
 
 
 @mcp.tool()
-async def get_runtime_consumption(tags: List[str]) -> List[Dict[str, Any]]:
+async def get_runtime_consumption(users: int) -> List[Dict[str, Any]]:
     """
-    Check for a given set of tags the runtime consumption with similar assistants that were previously run.
+    Check for a given amount of users, the alquimia runtime consumption.
     Args:
-        tags (List[str]): A list of tags to filter by. Returns entries that contain any of these tags.
+       users: (int): The number of users to check the runtime consumption for.
 
     Returns:
-        List[Dict[str, Any]]: A list of matching specifications from the runtime-consumption.json file.
+       A dict with cpu and memory consumption for the given number of users.
     """
-    import json
-    import os
+    memory_bias = 30.05
+    memory_slope = 0.00358
 
-    json_file_path = "docs/runtime-consumption.json"
+    cpu_bias = 6.95
+    cpu_slope = 0.00550
 
-    if not os.path.exists(json_file_path):
-        return []
+    ## Both memory and cpu consumptions increase linearly with the number of users.
+    memory_consumption = round(memory_bias + (memory_slope * users), 2)
+    cpu_consumption = round(cpu_bias + (cpu_slope * users), 2)
 
-    try:
-        with open(json_file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except (json.JSONDecodeError, IOError):
-        return []
-
-    stress_test_data = data.get("stress_test_resource_usage", [])
-    matching_specs = []
-
-    for spec in stress_test_data:
-        spec_tags = spec.get("type", [])
-        if any(tag.upper() in [t.upper() for t in spec_tags] for tag in tags):
-            matching_specs.append(spec)
-
-    return matching_specs
+    return [
+        {
+            "memory_consumption": f"{memory_consumption} GiB",
+            "cpu_consumption": f"{cpu_consumption} vCPUs",
+            "users": users,
+        }
+    ]
 
 
 if __name__ == "__main__":
