@@ -18,7 +18,7 @@ async def test_tools(polygon_coordinates):
         result = await client.call_tool("report_key_area_overlap", {"polygon_coordinates": polygon_coordinates, "buffer_km": 30})
         pprint(result[0].text)
 
-        result = await client.call_tool("report_ecosystem_overlap", {"polygon_coordinates": polygon_coordinates})
+        result = await client.call_tool("report_habitat_overlap", {"polygon_coordinates": polygon_coordinates})
         pprint(result[0].text)
 
         result = await client.call_tool("report_exploitation_area_overlap", {"polygon_coordinates": polygon_coordinates})

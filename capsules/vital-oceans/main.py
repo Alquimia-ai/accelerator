@@ -273,13 +273,13 @@ async def initialize_data():
     common_shapefiles = [
         'species/species_richness/species_richness.shp',
         'species/red_list/IUCN/IUCN.shp',
-        'ecosystems/coldwater_coralreefs/coldwater_coralreefs.shp',
-        'ecosystems/warmwater_coralreefs/warmwater_coralreefs.shp',
-        'ecosystems/mangroves/mangroves.shp',
-        'ecosystems/disturbed_mangroves/disturbed_mangroves.shp',
-        'ecosystems/wetlands/wetlands.shp',
-        'ecosystems/kelp/kelp.shp',
-        'ecosystems/seagrass/seagrass.shp',
+        'habitats/coldwater_coralreefs/coldwater_coralreefs.shp',
+        'habitats/warmwater_coralreefs/warmwater_coralreefs.shp',
+        'habitats/mangroves/mangroves.shp',
+        'habitats/disturbed_mangroves/disturbed_mangroves.shp',
+        'habitats/wetlands/wetlands.shp',
+        'habitats/kelp/kelp.shp',
+        'habitats/seagrass/seagrass.shp',
         'socioeconomic/fishing_exploitation_areas/mollusks/mollusks.shp',
         'socioeconomic/fishing_exploitation_areas/crustaceans/crustaceans.shp',
         'socioeconomic/fishing_exploitation_areas/squid/squid.shp',
@@ -498,12 +498,12 @@ Below is an analysis of the key areas that overlap with this polygon.
 
 
 @mcp.tool()
-async def report_ecosystem_overlap(
+async def report_habitat_overlap(
     polygon_coordinates: list[dict],
     context: Context,
 ) -> str:
-    """Generate a report on ecosystems that overlap with a given polygon.
-    Ecosystems include: cold- and warm-water coral reefs, kelp, seagrass, wetlands, mangroves, and disturbed mangroves.
+    """Generate a report on habitats that overlap with a given polygon.
+    Habitats include: cold- and warm-water coral reefs, kelp, seagrass, wetlands, mangroves, and disturbed mangroves.
     
     Parameters
     ----------
@@ -514,10 +514,10 @@ async def report_ecosystem_overlap(
     Returns
     -------
     str
-        Markdown-formatted report summarizing ecosystem overlaps."""
+        Markdown-formatted report summarizing habitat overlaps."""
 
     # Get shapefile paths
-    shp_paths = get_shp_paths(dir="ecosystems", ref=ref)
+    shp_paths = get_shp_paths(dir="habitats", ref=ref)
     
     # Build base polygon from coordinates
     _ = parse_coordinates(polygon_coordinates)
@@ -530,9 +530,9 @@ async def report_ecosystem_overlap(
     area = calculate_geodesic_area(polygon)
 
     # Generate reports
-    reports = f"""# Ecosystem Overlap Analysis
+    reports = f"""# Habitat Overlap Analysis
 The provided polygon covers an area of {area:,.2f} km².
-Below is an analysis of the ecosystems that overlap with this polygon.
+Below is an analysis of the habitats that overlap with this polygon.
 """
     for shp_path in shp_paths:
         # Load gdf and schema

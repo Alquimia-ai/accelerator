@@ -207,7 +207,7 @@ def generate_report_from_gdf(
     buffer_km: float = 0.0
 ) -> str:
     """Generate a Markdown-formatted report from gdf
-    using geospatial filters (polygon) and SQL queries (schema)."""
+    using geospatial filters (polygon clip) and SQL queries (shapefile schema)."""
 
     # Geospatial analysis
     geom_types = set(gdf.geometry.geom_type)
@@ -267,29 +267,28 @@ def generate_report_from_gdf(
         )
     
         report = f"""
-## {schema.get("title", shp_path)}
-{schema.get("description", shp_path)}
-
+## **{schema.get("title", shp_path)}**
 {md_table}
 
-Total records: {len(df_main)}
-Geometry type(s): {', '.join(geom_types)}{multigeom_count}
-Data Source: {schema.get("source", "unknown")}
+- **Description**: {schema.get("description", "No description available")}
+- **Total records**: {len(df_main)}
+- **Geometry type(s)**: {', '.join(geom_types)}{multigeom_count}
+- **Data Source**: {schema.get("source", "unknown")}
 """
-    
-        for query, extra_df in extras:
-            extra_csv = extra_df.to_csv(index=False)
-            extra_md = csv_to_md(extra_csv)
-            report += f"""
-Additional insights:
 
-{extra_md}
-"""
-        report += "---\n"
+        if extras:
+            report += "**Additional insights**:"
+
+            for query, extra_df in extras:
+                extra_csv = extra_df.to_csv(index=False)
+                extra_md = csv_to_md(extra_csv)
+                report += f"\n{extra_md}\n"
+
     else:
         report = f"""
-## {schema.get("title", shp_path)}
+## **{schema.get("title", shp_path)}**
 No records found.
----
 """
+
+    report += "-"*10+"\n" 
     return report
