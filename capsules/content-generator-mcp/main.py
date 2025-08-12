@@ -95,7 +95,7 @@ async def create_technical_topic_from_files(files: list[str], topic: str,
     ]
     for f in files:
         current_page = ""
-        with open("r", f) as _f:
+        with open(f, "r") as _f:
             content = _f.read()
 
             chunked_content = split_text_by_chars(content)
