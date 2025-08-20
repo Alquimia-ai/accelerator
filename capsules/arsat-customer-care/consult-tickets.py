@@ -4,6 +4,8 @@ from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 from loguru import logger
 from dataclasses import dataclass
+from dependencies.tickets import get_tickets_provider
+from models.ticket import Ticket
 
 # Initialize FastMCP server
 mcp = FastMCP(
@@ -36,22 +38,8 @@ async def get_active_tickets(context: Context):
     list
         A list of open tickets
     """
-    from dependencies.tickets import get_tickets_provider
 
-    result = await context.elicit(
-        message="Provide your active session", response_type=MaximoContext
-    )
-
-    if result.action == "decline":
-        await context.error("Active session not provided")
-        raise ValueError("Active session not provided")
-
-    if result.action == "cancel":
-        await context.error("Active session request was cancelled")
-        raise ValueError("Active session request was cancelled")
-
-    logger.debug(f"Result from elicit: {result}")
-    customer_id = result.data.pluspcustomer
+    customer_id = await validate_session_and_get_customer_id(context)
 
     if not customer_id:
         logger.error("Not found customer_id")
@@ -78,23 +66,8 @@ async def get_ticket_by_id(ticket_id: str, context: Context):
     dict
         The ticket associated with the ID. Returns an empty dict if not found
     """
-    from dependencies.tickets import get_tickets_provider
 
-    result = await context.elicit(
-        message="Provide your active session", response_type=MaximoContext
-    )
-
-    if result.action == "decline":
-        await context.error("Active session not provided")
-        raise ValueError("Active session not provided")
-
-    if result.action == "cancel":
-        await context.error("Active session request was cancelled")
-        raise ValueError("Active session request was cancelled")
-
-    logger.debug(f"Result from elicit: {result}")
-
-    customer_id = result.data.pluspcustomer
+    customer_id = await validate_session_and_get_customer_id(context)
 
     logger.debug(
         f"Get ticket by id was called! - ticket_id: {ticket_id} - pluspcustomer: {customer_id}"
@@ -122,6 +95,58 @@ async def get_classification(query: str, Context: Context):
         The classification result, e.g., {"category": "technical", "confidence": 0.95}
     """
     ## TODO: Implement with alquimia core
+
+
+@mcp.tool
+async def create_ticket(context: Context, ticket : Ticket):
+    """
+    Create a new ticket in the system.
+
+    Parameters
+    ----------
+    ticket : Ticket
+        The ticket data to create.
+
+    Returns
+    -------
+    Ticket
+        The created ticket object.
+    """
+    
+    await validate_session_and_get_customer_id(context)
+    
+    tickets_provider = get_tickets_provider()()
+    created_ticket = await tickets_provider.create_ticket(ticket)
+    if created_ticket:
+        return created_ticket
+    return None
+
+
+async def validate_session_and_get_customer_id(context: Context) -> str:
+    """
+    Valida la sesión del usuario y retorna el customer_id.
+
+    Raises:
+        ValueError: Si la sesión no es proporcionada, es cancelada o si el customer_id no se encuentra.
+    """
+    result = await context.elicit(
+        message="Provide your active session", response_type=MaximoContext
+    )
+
+    if result.action == "decline":
+        await context.error("Active session not provided")
+        raise ValueError("Active session not provided")
+
+    if result.action == "cancel":
+        await context.error("Active session request was cancelled")
+        raise ValueError("Active session request was cancelled")
+    
+    customer_id = result.data.pluspcustomer
+    if not customer_id:
+        logger.error("Not found customer_id")
+        raise ValueError("Customer ID not found in context")
+        
+    return customer_id
 
 
 if __name__ == "__main__":

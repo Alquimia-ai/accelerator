@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings
 
 ROOT_DIR: pathlib.Path = pathlib.Path(
     __file__
-).parent.parent.parent.parent.parent.resolve()
+).parent.parent.parent.resolve()
 
 
 class BackendBaseSettings(BaseSettings):
@@ -23,7 +23,7 @@ class BackendBaseSettings(BaseSettings):
     MAXIMO_USER_ID: str = decouple.config("MAXIMO_USER_ID", default=None, cast=str)
     MAXIMO_PASSWD: str = decouple.config("MAXIMO_PASSWD", default=None, cast=str)
     MAXIMO_OPEN_TICKET_STATUSES: list[str] = decouple.config(
-        "MAXIMO_OPEN_TICKET_STATUSES", default=[], cast=decouple.Csv()
+        "MAXIMO_OPEN_TICKET_STATUSES", default="", cast=decouple.Csv()
     )
 
     class Config(BaseConfig):
