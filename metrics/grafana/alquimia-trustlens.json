@@ -1,0 +1,428 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "rows": [
+    {
+      "title": "TrustLens Summary",
+      "height": "400px",
+      "showTitle": true,
+      "panels": [
+  {
+    "type": "gauge",
+    "title": "Context Awareness",
+    "datasource": "prometheus",
+    "span": 3,
+    "cacheTimeout": null,
+    "colorBackground": false,
+    "colorValue": true,
+    "colors": ["#299c46", "rgba(237, 129, 40, 0.89)", "#d44a3a"],
+    "decimals": 0,
+    "format": "time_series",
+    "height": "400px",
+    "gauge": { "maxValue": 100, "minValue": 0, "show": true, "thresholdLabels": false, "thresholdMarkers": true },
+    "mappingType": 1,
+    "mappingTypes": [
+      { "name": "value to text", "value": 1 },
+      { "name": "range to text", "value": 2 }
+    ],
+    "maxDataPoints": 100,
+    "nullPointMode": "connected",
+    "options": {
+      "fieldOptions": {
+        "calcs": ["last"],
+        "defaults": { "max": 100, "min": 0, "unit": "percent" },
+        "mappings": [],
+        "override": {},
+        "thresholds": [
+          { "color": "dark-red",    "index": 0, "value": null },
+          { "color": "dark-yellow", "index": 1, "value": 50 },
+          { "color": "dark-green",  "index": 2, "value": 80 }
+        ],
+        "values": false
+      }
+    },
+    "postfix": "%",
+    "postfixFontSize": "50%",
+    "prefix": "",
+    "prefixFontSize": "50%",
+    "rangeMaps": [{ "from": "null", "text": "N/A", "to": "null" }],
+    "sparkline": { "show": false },
+    "valueFontSize": "100%",
+    "valueName": "current",
+    "targets": [
+      {
+        "refId": "A",
+        "expr": "avg_over_time(context_metrics_context_awareness{namespace=\"alquimia-runtime\", assistant_id=~\"$assistant\"}[$__range])",
+        "instant": true,
+        "format": "time_series",
+        "intervalFactor": 1
+      }
+    ]
+  },
+
+  {
+    "type": "gauge",
+    "title": "Bias",
+    "datasource": "prometheus",
+    "span": 3,
+    "cacheTimeout": null,
+    "colorBackground": false,
+    "colorValue": true,
+    "colors": ["#299c46", "rgba(237, 129, 40, 0.89)", "#d44a3a"],
+    "decimals": 0,
+    "format": "time_series",
+    "height": "400px",
+    "gauge": { "maxValue": 100, "minValue": 0, "show": true, "thresholdLabels": false, "thresholdMarkers": true },
+    "mappingType": 1,
+    "mappingTypes": [
+      { "name": "value to text", "value": 1 },
+      { "name": "range to text", "value": 2 }
+    ],
+    "maxDataPoints": 100,
+    "nullPointMode": "connected",
+    "options": {
+      "fieldOptions": {
+        "calcs": ["last"],
+        "defaults": { "max": 100, "min": 0, "unit": "percent" },
+        "mappings": [],
+        "override": {},
+        "thresholds": [
+          { "color": "dark-green",  "index": 0, "value": 0 },
+          { "color": "dark-yellow", "index": 1, "value": 20 },
+          { "color": "dark-red",    "index": 2, "value": 50 }
+          
+          
+        ],
+        "values": false
+      }
+    },
+    "postfix": "%",
+    "postfixFontSize": "50%",
+    "prefix": "",
+    "prefixFontSize": "50%",
+    "rangeMaps": [{ "from": "null", "text": "N/A", "to": "null" }],
+    "sparkline": { "show": false },
+    "valueFontSize": "100%",
+    "valueName": "current",
+    "targets": [
+      {
+        "refId": "A",
+        "expr": "(1 -  ( avg_over_time(bias_metrics_risks_0_risk_score{namespace=\"alquimia-runtime\", assistant_id=~\"$assistant\"}[$__range]) +\n  avg_over_time(bias_metrics_risks_1_risk_score{namespace=\"alquimia-runtime\", assistant_id=~\"$assistant\"}[$__range]) +\n  avg_over_time(bias_metrics_risks_2_risk_score{namespace=\"alquimia-runtime\", assistant_id=~\"$assistant\"}[$__range]) +\n  avg_over_time(bias_metrics_risks_3_risk_score{namespace=\"alquimia-runtime\", assistant_id=~\"$assistant\"}[$__range]) +\n  avg_over_time(bias_metrics_risks_4_risk_score{namespace=\"alquimia-runtime\", assistant_id=~\"$assistant\"}[$__range]) +\n  avg_over_time(bias_metrics_risks_5_risk_score{namespace=\"alquimia-runtime\", assistant_id=~\"$assistant\"}[$__range])\n)/6) * 100",
+        "instant": true,
+        "format": "time_series",
+        "intervalFactor": 1
+      }
+    ]
+  },
+
+  {
+    "type": "gauge",
+    "title": "Conversational",
+    "datasource": "prometheus",
+    "span": 3,
+    "cacheTimeout": null,
+    "colorBackground": false,
+    "colorValue": true,
+    "colors": ["#299c46", "rgba(237, 129, 40, 0.89)", "#d44a3a"],
+    "decimals": 0,
+    "format": "time_series",
+    "height": "400px",
+    "gauge": { "maxValue": 100, "minValue": 0, "show": true, "thresholdLabels": false, "thresholdMarkers": true },
+    "mappingType": 1,
+    "mappingTypes": [
+      { "name": "value to text", "value": 1 },
+      { "name": "range to text", "value": 2 }
+    ],
+    "maxDataPoints": 100,
+    "nullPointMode": "connected",
+    "options": {
+      "fieldOptions": {
+        "calcs": ["last"],
+        "defaults": { "max": 100, "min": 0, "unit": "percent" },
+        "mappings": [],
+        "override": {},
+        "thresholds": [
+          { "color": "dark-red",    "index": 0, "value": null },
+          { "color": "dark-yellow", "index": 1, "value": 60 },
+          { "color": "dark-green",  "index": 2, "value": 80 }
+        ],
+        "values": false
+      }
+    },
+    "postfix": "%",
+    "postfixFontSize": "50%",
+    "prefix": "",
+    "prefixFontSize": "50%",
+    "rangeMaps": [{ "from": "null", "text": "N/A", "to": "null" }],
+    "sparkline": { "show": false },
+    "valueFontSize": "100%",
+    "valueName": "current",
+    "targets": [
+      {
+        "refId": "A",
+        "expr": "(\n  avg_over_time(conversational_metrics_conversational_language{namespace=\"alquimia-runtime\", assistant_id=~\"$assistant\"}[$__range])/10 +\n  avg_over_time(conversational_metrics_conversational_memory{namespace=\"alquimia-runtime\", assistant_id=~\"$assistant\"}[$__range])/100 +\n  avg_over_time(conversational_metrics_conversational_sensibleness{namespace=\"alquimia-runtime\", assistant_id=~\"$assistant\"}[$__range])/10 +\n  avg_over_time(conversational_metrics_conversational_quality_maxim{namespace=\"alquimia-runtime\", assistant_id=~\"$assistant\"}[$__range])/10 +\n  avg_over_time(conversational_metrics_conversational_quantity_maxim{namespace=\"alquimia-runtime\", assistant_id=~\"$assistant\"}[$__range])/10 +\n  avg_over_time(conversational_metrics_conversational_relation_maxim{namespace=\"alquimia-runtime\", assistant_id=~\"$assistant\"}[$__range])/10 +\n  avg_over_time(conversational_metrics_conversational_manner_maxim{namespace=\"alquimia-runtime\", assistant_id=~\"$assistant\"}[$__range])/10\n)/7 * 100",
+        "instant": true,
+        "format": "time_series",
+        "intervalFactor": 1
+      }
+    ]
+  },
+
+  {
+    "type": "gauge",
+    "title": "Humanity",
+    "datasource": "prometheus",
+    "span": 3,
+    "cacheTimeout": null,
+    "colorBackground": false,
+    "colorValue": true,
+    "colors": ["#299c46", "rgba(237, 129, 40, 0.89)", "#d44a3a"],
+    "decimals": 0,
+    "format": "time_series",
+    "height": "400px",
+    "gauge": { "maxValue": 100, "minValue": 0, "show": true, "thresholdLabels": false, "thresholdMarkers": true },
+    "mappingType": 1,
+    "mappingTypes": [
+      { "name": "value to text", "value": 1 },
+      { "name": "range to text", "value": 2 }
+    ],
+    "maxDataPoints": 100,
+    "nullPointMode": "connected",
+    "options": {
+      "fieldOptions": {
+        "calcs": ["last"],
+        "defaults": { "max": 100, "min": 0, "unit": "percent" },
+        "mappings": [],
+        "override": {},
+        "thresholds": [
+          { "color": "dark-red",    "index": 0, "value": null },
+          { "color": "dark-yellow", "index": 1, "value": 50 },
+          { "color": "dark-green",  "index": 2, "value": 80 }
+        ],
+        "values": false
+      }
+    },
+    "postfix": "%",
+    "postfixFontSize": "50%",
+    "prefix": "",
+    "prefixFontSize": "50%",
+    "rangeMaps": [{ "from": "null", "text": "N/A", "to": "null" }],
+    "sparkline": { "show": false },
+    "valueFontSize": "100%",
+    "valueName": "current",
+    "targets": [
+      {
+        "refId": "A",
+        "expr": "(avg_over_time(humanity_metrics_humanity_assistant_emotional_entropy{namespace=\"alquimia-runtime\", assistant_id=~\"$assistant\"}[$__range])) * 100 / 3 ",
+        "instant": true,
+        "format": "time_series",
+        "intervalFactor": 1
+      }
+    ]
+  }
+]
+
+
+    },
+
+    {
+      "title": "Bias Detail",
+      "height": "220px",
+      "showTitle": true,
+      "span": 12,
+      "panels": [
+          { "type": "singlestat", "title": "Social",    "datasource": "prometheus", "span": 2,
+            "colorValue": true, "colors": ["#299c46","rgba(237,129,40,0.89)","#d44a3a"], "thresholds": "30,60",
+            "valueName": "current", "valueFontSize": "120%",
+            "options": { "fieldOptions": { "calcs": ["last"], "defaults": { "unit": "percent", "min": 0, "max": 100 } } },
+            "targets": [{ "refId": "A", "expr": "( 1- avg_over_time(bias_metrics_risks_0_risk_score{namespace=\"alquimia-runtime\",assistant_id=~\"$assistant\"}[$__range])) * 100", "instant": true, "format": "time_series" }]
+          },
+          { "type": "singlestat", "title": "Harm",      "datasource": "prometheus", "span": 2,
+            "colorValue": true, "colors": ["#299c46","rgba(237,129,40,0.89)","#d44a3a"], "thresholds": "30,60",
+            "valueName": "current", "valueFontSize": "120%",
+            "options": { "fieldOptions": { "calcs": ["last"], "defaults": { "unit": "percent", "min": 0, "max": 100 } } },
+            "targets": [{ "refId": "A", "expr": "( 1- avg_over_time(bias_metrics_risks_1_risk_score{namespace=\"alquimia-runtime\",assistant_id=~\"$assistant\"}[$__range])) * 100", "instant": true, "format": "time_series" }]
+          },
+          { "type": "singlestat", "title": "Profanity", "datasource": "prometheus", "span": 2,
+            "colorValue": true, "colors": ["#299c46","rgba(237,129,40,0.89)","#d44a3a"], "thresholds": "30,60",
+            "valueName": "current", "valueFontSize": "120%",
+            "options": { "fieldOptions": { "calcs": ["last"], "defaults": { "unit": "percent", "min": 0, "max": 100 } } },
+            "targets": [{ "refId": "A", "expr": "( 1- avg_over_time(bias_metrics_risks_2_risk_score{namespace=\"alquimia-runtime\",assistant_id=~\"$assistant\"}[$__range])) * 100", "instant": true, "format": "time_series" }]
+          },
+          { "type": "singlestat", "title": "Sexual",    "datasource": "prometheus", "span": 2,
+            "colorValue": true, "colors": ["#299c46","rgba(237,129,40,0.89)","#d44a3a"], "thresholds": "30,60",
+            "valueName": "current", "valueFontSize": "120%",
+            "options": { "fieldOptions": { "calcs": ["last"], "defaults": { "unit": "percent", "min": 0, "max": 100 } } },
+            "targets": [{ "refId": "A", "expr": "( 1- avg_over_time(bias_metrics_risks_3_risk_score{namespace=\"alquimia-runtime\",assistant_id=~\"$assistant\"}[$__range])) * 100", "instant": true, "format": "time_series" }]
+          },
+          { "type": "singlestat", "title": "Unethical", "datasource": "prometheus", "span": 2,
+            "colorValue": true, "colors": ["#299c46","rgba(237,129,40,0.89)","#d44a3a"], "thresholds": "30,60",
+            "valueName": "current", "valueFontSize": "120%",
+            "options": { "fieldOptions": { "calcs": ["last"], "defaults": { "unit": "percent", "min": 0, "max": 100 } } },
+            "targets": [{ "refId": "A", "expr": "( 1- avg_over_time(bias_metrics_risks_4_risk_score{namespace=\"alquimia-runtime\",assistant_id=~\"$assistant\"}[$__range])) * 100", "instant": true, "format": "time_series" }]
+          },
+          { "type": "singlestat", "title": "Violence",  "datasource": "prometheus", "span": 2,
+            "colorValue": true, "colors": ["#299c46","rgba(237,129,40,0.89)","#d44a3a"], "thresholds": "30,60",
+            "valueName": "current", "valueFontSize": "120%",
+            "options": { "fieldOptions": { "calcs": ["last"], "defaults": { "unit": "percent", "min": 0, "max": 100 } } },
+            "targets": [{ "refId": "A", "expr": "( 1- avg_over_time(bias_metrics_risks_5_risk_score{namespace=\"alquimia-runtime\",assistant_id=~\"$assistant\"}[$__range])) * 100", "instant": true, "format": "time_series" }]
+          }
+      ]
+  },
+  {
+    "title": "Conversational Detail",
+    "height": "220px",
+    "showTitle": true,
+    "span": 12,
+    "panels": [
+      { "type": "singlestat", "title": "Language", "datasource": "prometheus", "span": 3,
+        "colorValue": true, "colors": ["#d44a3a","rgba(237,129,40,0.89)","#299c46"], "thresholds": "60,80",
+        "valueName": "current", "valueFontSize": "120%",
+        "options": { "fieldOptions": { "calcs": ["last"], "defaults": { "unit": "percent", "min": 0, "max": 100 } } },
+        "targets": [{ "refId": "A", "expr": "avg_over_time(conversational_metrics_conversational_language{namespace=\"alquimia-runtime\",assistant_id=~\"$assistant\"}[$__range]) / 10 * 100", "instant": true, "format": "time_series" }]
+      },
+      { "type": "singlestat", "title": "Memory", "datasource": "prometheus", "span": 3,
+        "colorValue": true, "colors": ["#d44a3a","rgba(237,129,40,0.89)","#299c46"], "thresholds": "60,80",
+        "valueName": "current", "valueFontSize": "120%",
+        "options": { "fieldOptions": { "calcs": ["last"], "defaults": { "unit": "percent", "min": 0, "max": 100 } } },
+        "targets": [{ "refId": "A", "expr": "avg_over_time(conversational_metrics_conversational_memory{namespace=\"alquimia-runtime\",assistant_id=~\"$assistant\"}[$__range])", "instant": true, "format": "time_series" }]
+      },
+      { "type": "singlestat", "title": "Sensibleness", "datasource": "prometheus", "span": 3,
+        "colorValue": true, "colors": ["#d44a3a","rgba(237,129,40,0.89)","#299c46"], "thresholds": "60,80",
+        "valueName": "current", "valueFontSize": "120%",
+        "options": { "fieldOptions": { "calcs": ["last"], "defaults": { "unit": "percent", "min": 0, "max": 100 } } },
+        "targets": [{ "refId": "A", "expr": "avg_over_time(conversational_metrics_conversational_sensibleness{namespace=\"alquimia-runtime\",assistant_id=~\"$assistant\"}[$__range]) / 10 * 100", "instant": true, "format": "time_series" }]
+      },
+      { "type": "singlestat", "title": "Quality Maxim", "datasource": "prometheus", "span": 3,
+        "colorValue": true, "colors": ["#d44a3a","rgba(237,129,40,0.89)","#299c46"], "thresholds": "60,80",
+        "valueName": "current", "valueFontSize": "120%",
+        "options": { "fieldOptions": { "calcs": ["last"], "defaults": { "unit": "percent", "min": 0, "max": 100 } } },
+        "targets": [{ "refId": "A", "expr": "avg_over_time(conversational_metrics_conversational_quality_maxim{namespace=\"alquimia-runtime\",assistant_id=~\"$assistant\"}[$__range]) / 10 * 100", "instant": true, "format": "time_series" }]
+      },
+      { "type": "singlestat", "title": "Quantity Maxim", "datasource": "prometheus", "span": 3,
+        "colorValue": true, "colors": ["#d44a3a","rgba(237,129,40,0.89)","#299c46"], "thresholds": "60,80",
+        "valueName": "current", "valueFontSize": "120%",
+        "options": { "fieldOptions": { "calcs": ["last"], "defaults": { "unit": "percent", "min": 0, "max": 100 } } },
+        "targets": [{ "refId": "A", "expr": "avg_over_time(conversational_metrics_conversational_quantity_maxim{namespace=\"alquimia-runtime\",assistant_id=~\"$assistant\"}[$__range]) / 10 * 100", "instant": true, "format": "time_series" }]
+      },
+      { "type": "singlestat", "title": "Relation Maxim", "datasource": "prometheus", "span": 3,
+        "colorValue": true, "colors": ["#d44a3a","rgba(237,129,40,0.89)","#299c46"], "thresholds": "60,80",
+        "valueName": "current", "valueFontSize": "120%",
+        "options": { "fieldOptions": { "calcs": ["last"], "defaults": { "unit": "percent", "min": 0, "max": 100 } } },
+        "targets": [{ "refId": "A", "expr": "avg_over_time(conversational_metrics_conversational_relation_maxim{namespace=\"alquimia-runtime\",assistant_id=~\"$assistant\"}[$__range]) / 10 * 100", "instant": true, "format": "time_series" }]
+      },
+      { "type": "singlestat", "title": "Manner Maxim", "datasource": "prometheus", "span": 3,
+        "colorValue": true, "colors": ["#d44a3a","rgba(237,129,40,0.89)","#299c46"], "thresholds": "60,80",
+        "valueName": "current", "valueFontSize": "120%",
+        "options": { "fieldOptions": { "calcs": ["last"], "defaults": { "unit": "percent", "min": 0, "max": 100 } } },
+        "targets": [{ "refId": "A", "expr": "avg_over_time(conversational_metrics_conversational_manner_maxim{namespace=\"alquimia-runtime\",assistant_id=~\"$assistant\"}[$__range]) / 10 * 100", "instant": true, "format": "time_series" }]
+      }
+    ]
+  },
+  {
+  "title": "Humanity Detail",
+  "height": "220px",
+  "showTitle": true,
+  "span": 12,
+  "panels": [
+    { "type": "singlestat", "title": "Joy", "datasource": "prometheus", "span": 2,
+      "colorValue": true, "colors": ["#d44a3a","rgba(237,129,40,0.89)","#299c46"], "thresholds": "40,70",
+      "valueName": "current", "valueFontSize": "120%",
+      "postfix": "%",
+      "options": { "fieldOptions": { "calcs": ["last"], "defaults": { "unit": "percent", "min": 0, "max": 100 } } },
+      "targets": [{ "refId": "A", "expr": "avg_over_time(humanity_metrics_humanity_assistant_joy{namespace=\"alquimia-runtime\",assistant_id=~\"$assistant\"}[$__range]) * 100", "instant": true, "format": "time_series" }]
+    },
+    { "type": "singlestat", "title": "Sadness", "datasource": "prometheus", "span": 2,
+      "colorValue": true, "colors": ["#d44a3a","rgba(237,129,40,0.89)","#299c46"], "thresholds": "40,70",
+      "valueName": "current", "valueFontSize": "120%",
+      "postfix": "%",
+      "options": { "fieldOptions": { "calcs": ["last"], "defaults": { "unit": "percent", "min": 0, "max": 100 } } },
+      "targets": [{ "refId": "A", "expr": "avg_over_time(humanity_metrics_humanity_assistant_sadness{namespace=\"alquimia-runtime\",assistant_id=~\"$assistant\"}[$__range]) * 100", "instant": true, "format": "time_series" }]
+    },
+    { "type": "singlestat", "title": "Trust", "datasource": "prometheus", "span": 2,
+      "colorValue": true, "colors": ["#d44a3a","rgba(237,129,40,0.89)","#299c46"], "thresholds": "40,70",
+      "valueName": "current", "valueFontSize": "120%",
+      "postfix": "%",
+      "options": { "fieldOptions": { "calcs": ["last"], "defaults": { "unit": "percent", "min": 0, "max": 100 } } },
+      "targets": [{ "refId": "A", "expr": "avg_over_time(humanity_metrics_humanity_assistant_trust{namespace=\"alquimia-runtime\",assistant_id=~\"$assistant\"}[$__range]) * 100", "instant": true, "format": "time_series" }]
+    },
+    { "type": "singlestat", "title": "Anger", "datasource": "prometheus", "span": 2,
+      "colorValue": true, "colors": ["#d44a3a","rgba(237,129,40,0.89)","#299c46"], "thresholds": "40,70",
+      "valueName": "current", "valueFontSize": "120%",
+      "postfix": "%",
+      "options": { "fieldOptions": { "calcs": ["last"], "defaults": { "unit": "percent", "min": 0, "max": 100 } } },
+      "targets": [{ "refId": "A", "expr": "avg_over_time(humanity_metrics_humanity_assistant_anger{namespace=\"alquimia-runtime\",assistant_id=~\"$assistant\"}[$__range]) * 100", "instant": true, "format": "time_series" }]
+    },
+    { "type": "singlestat", "title": "Disgust", "datasource": "prometheus", "span": 2,
+      "colorValue": true, "colors": ["#d44a3a","rgba(237,129,40,0.89)","#299c46"], "thresholds": "40,70",
+      "valueName": "current", "valueFontSize": "120%",
+      "postfix": "%",
+      "options": { "fieldOptions": { "calcs": ["last"], "defaults": { "unit": "percent", "min": 0, "max": 100 } } },
+      "targets": [{ "refId": "A", "expr": "avg_over_time(humanity_metrics_humanity_assistant_disgust{namespace=\"alquimia-runtime\",assistant_id=~\"$assistant\"}[$__range]) * 100", "instant": true, "format": "time_series" }]
+    },
+    { "type": "singlestat", "title": "Fear", "datasource": "prometheus", "span": 2,
+      "colorValue": true, "colors": ["#d44a3a","rgba(237,129,40,0.89)","#299c46"], "thresholds": "40,70",
+      "valueName": "current", "valueFontSize": "120%",
+      "postfix": "%",
+      "options": { "fieldOptions": { "calcs": ["last"], "defaults": { "unit": "percent", "min": 0, "max": 100 } } },
+      "targets": [{ "refId": "A", "expr": "avg_over_time(humanity_metrics_humanity_assistant_fear{namespace=\"alquimia-runtime\",assistant_id=~\"$assistant\"}[$__range]) * 100", "instant": true, "format": "time_series" }]
+    },
+    { "type": "singlestat", "title": "Surprise", "datasource": "prometheus", "span": 2,
+      "colorValue": true, "colors": ["#d44a3a","rgba(237,129,40,0.89)","#299c46"], "thresholds": "40,70",
+      "valueName": "current", "valueFontSize": "120%",
+      "postfix": "%",
+      "options": { "fieldOptions": { "calcs": ["last"], "defaults": { "unit": "percent", "min": 0, "max": 100 } } },
+      "targets": [{ "refId": "A", "expr": "avg_over_time(humanity_metrics_humanity_assistant_surprise{namespace=\"alquimia-runtime\",assistant_id=~\"$assistant\"}[$__range]) * 100", "instant": true, "format": "time_series" }]
+    },
+    { "type": "singlestat", "title": "Anticipation", "datasource": "prometheus", "span": 2,
+      "colorValue": true, "colors": ["#d44a3a","rgba(237,129,40,0.89)","#299c46"], "thresholds": "40,70",
+      "valueName": "current", "valueFontSize": "120%",
+      "postfix": "%",
+      "options": { "fieldOptions": { "calcs": ["last"], "defaults": { "unit": "percent", "min": 0, "max": 100 } } },
+      "targets": [{ "refId": "A", "expr": "avg_over_time(humanity_metrics_humanity_assistant_anticipation{namespace=\"alquimia-runtime\",assistant_id=~\"$assistant\"}[$__range]) * 100", "instant": true, "format": "time_series" }]
+    },
+    { "type": "singlestat", "title": "Emotional Entropy", "datasource": "prometheus", "span": 2,
+      "colorValue": true, "colors": ["#d44a3a","rgba(237,129,40,0.89)","#299c46"], "thresholds": "40,70",
+      "valueName": "current", "valueFontSize": "120%",
+      "options": { "fieldOptions": { "calcs": ["last"], "defaults": { "unit": "percent", "min": 0, "max": 100 } } },
+      "targets": [{ "refId": "A", "expr": "avg_over_time(humanity_metrics_humanity_assistant_emotional_entropy{namespace=\"alquimia-runtime\",assistant_id=~\"$assistant\"}[$__range])", "instant": true, "format": "time_series" }]
+    }
+  ]
+}
+
+
+
+
+  ],
+  "refresh": "30s",
+  "schemaVersion": 36,
+  "style": "dark",
+  "tags": ["otel", "trust", "custom"],
+  "templating": {
+    "list": [
+      {
+        "allValue": ".*",
+        "current": {},
+        "datasource": "prometheus",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Assistant",
+        "multi": true,
+        "name": "assistant",
+        "query": "label_values({namespace=\"alquimia-runtime\"}, assistant_id)",
+        "refresh": 2,
+        "regex": "",
+        "sort": 1,
+        "type": "query",
+        "useTags": false
+      }
+    ]
+  },
+  "time": { "from": "now-3h", "to": "now" },
+  "timezone": "browser",
+  "title": "TrustLens (Prometheus)",
+  "version": 4
+}
