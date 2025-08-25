@@ -1,5 +1,0 @@
-aiosseclient>=0.1.8
-fastmcp>=2.10.6
-httpx>=0.28.1
-langchain-text-splitters>=0.3.9
-loguru>=0.7.3
