@@ -1,4 +1,6 @@
+import asyncio
 import json
+from typing import Any, Dict, List, Optional
 
 import httpx
 from aiosseclient import aiosseclient
@@ -23,6 +25,8 @@ class AlquimiaClient:
         event_stream_timeout=None,
         request_timeout=None,
         trigger_client_side_tools=True,
+        max_retries: int = 3,
+        retry_backoff: float = 1.5,
     ):
         self.session_id = session_id
         self.assistant_id = assistant_id
@@ -33,6 +37,8 @@ class AlquimiaClient:
         self.force_profile = force_profile
         self.event_stream_timeout = event_stream_timeout
         self.request_timeout = request_timeout
+        self.max_retries = max_retries
+        self.retry_backoff = retry_backoff
 
     async def stream(self, stream_id):
         async for event in aiosseclient(
@@ -76,21 +82,53 @@ class AlquimiaClient:
                 response.raise_for_status()
                 return response.json()
 
-    async def infer(self, query, attachments=[]):
+    async def infer(
+        self,
+        query: str,
+        attachments: Optional[List] = None,
+        chat_history=0,
+        extra_data={},
+    ) -> Dict[str, Any]:
+        attachments = attachments or []
+
         payload = {
             "query": query,
             "session_id": self.session_id,
-            "extra_data": self.extra_data,
+            "extra_data": self.extra_data | extra_data,
             "force_profile": self.force_profile,
             "attachments": attachments,
         }
-        logger.debug(f"Sending inference request to Alquimia: {payload}")
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{self.base_url}/infer/{self.source}/{self.assistant_id}",
-                headers={"Authorization": f"Bearer {self.api_key}"},
-                json=payload,
-                timeout=self.request_timeout,
-            )
-            response.raise_for_status()
-            return response.json()
+
+        retries = 0
+        backoff = self.retry_backoff
+
+        while True:
+            try:
+                logger.debug(
+                    f"Sending inference request to Alquimia (attempt {retries + 1}): {payload}"
+                )
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(
+                        f"{self.base_url}/infer/{self.source}/{self.assistant_id}",
+                        headers={"Authorization": f"Bearer {self.api_key}"},
+                        json=payload,
+                        params={"chat_history": chat_history},
+                        timeout=self.request_timeout,
+                    )
+                    response.raise_for_status()
+                    return response.json()
+
+            except (
+                httpx.TimeoutException,
+                httpx.HTTPStatusError,
+                httpx.TransportError,
+            ) as e:
+                retries += 1
+                if retries > self.max_retries:
+                    logger.error(f"Max retries exceeded for query: {query}")
+                    raise
+                logger.warning(
+                    f"Request failed (attempt {retries}/{self.max_retries}), retrying in {backoff:.1f}s: {e}"
+                )
+                await asyncio.sleep(backoff)
+                backoff *= 2  # exponential backoff

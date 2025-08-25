@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: alquimia-tech-content-generator-mcp
+Version: 0.1.0
+Summary: An MCP server to generate technical documents based on Alquimia API
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: aiosseclient>=0.1.8
+Requires-Dist: fastmcp>=2.10.6
+Requires-Dist: httpx>=0.28.1
+Requires-Dist: langchain-text-splitters>=0.3.9
+Requires-Dist: loguru>=0.7.3

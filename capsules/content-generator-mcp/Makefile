@@ -28,3 +28,7 @@ uninstall:
 deploy:
 	@oc apply -f $(mkfile_dir)/deploy.yaml -n $(DEPLOY_NAMESPACE)
 	@watch -n1 oc get pods -n $(DEPLOY_NAMESPACE)
+
+.PHONY: package
+package:
+	@uv build

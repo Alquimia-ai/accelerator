@@ -1,0 +1,11 @@
+README.md
+pyproject.toml
+src/alquimia_tech_content_generator_mcp/__init__.py
+src/alquimia_tech_content_generator_mcp/client.py
+src/alquimia_tech_content_generator_mcp/main.py
+src/alquimia_tech_content_generator_mcp/prompts.py
+src/alquimia_tech_content_generator_mcp.egg-info/PKG-INFO
+src/alquimia_tech_content_generator_mcp.egg-info/SOURCES.txt
+src/alquimia_tech_content_generator_mcp.egg-info/dependency_links.txt
+src/alquimia_tech_content_generator_mcp.egg-info/requires.txt
+src/alquimia_tech_content_generator_mcp.egg-info/top_level.txt
