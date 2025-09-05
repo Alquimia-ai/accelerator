@@ -333,7 +333,7 @@ async def mpa_feasibility_report(
     Parameters
     ----------
     polygon_coordinates : List[dict]
-        Coordinate pairs representing the vertices of the polygon.
+        List of coordinates pairs representing the vertices of the polygon.
         Format: [{"lat": float, "lng": float}, ...]
     buffer_km : float, optional
         Buffer distance (in kilometers) to expand the polygon before analysis. Default is 10.
