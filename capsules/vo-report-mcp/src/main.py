@@ -16,7 +16,7 @@ import boto3
 from botocore.config import Config
 from botocore.exceptions import NoCredentialsError, ClientError
 
-from fastmcp import FastMCP, Client
+from fastmcp import FastMCP, Client, Context
 from loguru import logger
 
 from client import AlquimiaClient
@@ -228,7 +228,7 @@ def upload_pdf_to_s3(
     aws_secret_access_key: Optional[str] = None,
     region_name: str = 'us-east-1',
     make_presigned_url: bool = True,
-    presign_expires: int = 3600
+    presign_expires: int = 86400  # 24 hours
 ) -> str:
     """
     Upload PDF content to S3-compatible storage (e.g., MinIO) and return a URL.
@@ -321,48 +321,64 @@ def upload_pdf_to_s3(
 @mcp.tool
 async def mpa_feasibility_report(
     polygon_coordinates: List[dict],
+    ctx: Context,
     buffer_km: float = 10.0,
-    language: str = "spanish"
+    language: str = "spanish",
+    custom_requirements: Optional[str] = None
 ) -> str:
-    """Generates a structured report assessing the feasibility of designating the proposed polygonal area as a Marine Protected Area.
-
-    The report includes information about the area's geography, biodiversity, economic sectors,
-    and main threats, following a predefined structure. The function uses the provided polygon
-    coordinates as input for analysis and ensures the report is written in the desired language.
+    """
+    Generates a structured report assessing the feasibility of designating the proposed polygonal area as a Marine Protected Area.
+    The report is generated as a PDF file, and the resulting PDF URL is sent to the client UI via the tool context (not returned).
 
     Parameters
     ----------
     polygon_coordinates : List[dict]
-        List of coordinates pairs representing the vertices of the polygon.
+        Coordinate pairs representing the vertices of the polygon.
         Format: [{"lat": float, "lng": float}, ...]
-    buffer_km : float (optional)
-        Optional buffer (in kilometers) to expand the polygon before analysis. Default is 10.
-    language : str
-        Language in which the report should be written. Default is "Spanish".
+    buffer_km : float, optional
+        Buffer distance (in kilometers) to expand the polygon before analysis. Default is 10.
+    language : str, optional
+        Language in which the report should be written. Default is "spanish".
+    custom_requirements : str, optional
+        Specific requirements, constraints, or guidance to tailor the content of the report. Default is None.
 
     Returns
     -------
     str
-        URL to the generated PDF report."""
- 
+        A confirmation message.
+    """
+
     # Get shapefile data from VO MCP
-    shapefile_data = await query_shapefiles(polygon_coordinates=polygon_coordinates, buffer_km=buffer_km)
+    shapefile_data = await query_shapefiles(
+        polygon_coordinates=polygon_coordinates,
+        buffer_km=buffer_km,
+    )
+
+    # Build user query
+    if language.lower() == "spanish":
+        query = (
+            "Escribe un informe en español que evalúe la factibilidad de "
+            "designar el área bajo estudio como un Área Marina Protegida."
+        )
+    else:
+        query = (
+            f"Write a report in {language.title()} assessing the feasibility of "
+            "designating the study area as a Marine Protected Area."
+        )
+
+    if custom_requirements:
+        query += f"\n\n{custom_requirements}"
 
     # Report generation
-    if language.lower() == "spanish":
-        query = "Escribe un informe en español que evalúe la factibilidad de designar el área bajo estudio como un Área Marina Protegida."
-    else:
-        query = f"Write a report in {language.title()} assessing the feasibility of designating the study area as a Marine Protected Area."
-
     response = await alquimia_client.infer(
-            query,
-            extra_data={
-                "polygon_coordinates": polygon_coordinates,
-                "buffer_km": buffer_km,
-                "language": language.title(),
-                "shapefile_data": shapefile_data,
-            }
-        )
+        query,
+        extra_data={
+            "polygon_coordinates": polygon_coordinates,
+            "buffer_km": buffer_km,
+            "language": language.title(),
+            "shapefile_data": shapefile_data,
+        },
+    )
     stream_id = response["stream_id"]
     report_md = await alquimia_client.stream(stream_id)
 
@@ -378,11 +394,16 @@ async def mpa_feasibility_report(
         endpoint_url=S3_ENDPOINT,
         aws_access_key_id=S3_ACCESS_KEY,
         aws_secret_access_key=S3_SECRET_ACCESS_KEY,
-        region_name="nyc3"
+        region_name="nyc3",
     )
 
-    logger.info(f"✅ Report URL successfully generated.")
-    return url
+    logger.info("✅ Report URL successfully generated.")
+
+    # Send URL via context
+    if ctx:
+        await ctx.info("MPA_REPORT_READY", extra={"url": url})
+
+    return "Report was generated successfully."
 
 
 # --- Run MCP ---
