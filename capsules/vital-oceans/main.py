@@ -345,13 +345,14 @@ def get_netcdf_binary(sub_path: str, context: Context):
 
 # --- Tools --- #
 
-from utils import parse_coordinates, get_shp_paths, calculate_geodesic_area, generate_report_from_gdf
+from utils import parse_coordinates, get_shp_paths, calculate_geodesic_area, generate_report_from_gdf, clip_and_calculate_overlap
 
 @mcp.tool()
 async def calculate_polygon_area(
     polygon_coordinates: list[dict],
     context: Context) -> float:
-    """Calculate the geodesic area of a polygon.
+    """
+    Calculate the geodesic area of a polygon.
 
     Parameters
     ----------
@@ -362,7 +363,8 @@ async def calculate_polygon_area(
     Returns
     -------
     float
-        Area in km²."""
+        Area in km².
+    """
 
     # Define polygon
     _ = parse_coordinates(polygon_coordinates)
@@ -380,7 +382,8 @@ async def get_red_list_in_polygon(
     polygon_coordinates: list[dict],
     context: Context,
 ) -> str:
-    """Query the IUCN or OBIS red list for endangered marine species within a polygon.
+    """
+    Query the IUCN or OBIS red list for endangered marine species within a polygon.
 
     Parameters
     ----------
@@ -394,7 +397,8 @@ async def get_red_list_in_polygon(
     Returns
     -------
     str
-        Markdown-formatted report of observed species and their threat categories."""
+        Markdown-formatted report of observed species and their threat categories.
+    """
 
     # Set shapefiles paths
     shapefile_map = {
@@ -442,7 +446,8 @@ async def report_key_area_overlap(
     context: Context,
     buffer_km: float = 0.0,
 ) -> str:
-    """Generate a report on key marine areas that overlap with a given polygon.
+    """
+    Generate a report on key marine areas that overlap with a given polygon.
     Key areas include: Biological Primary Productivity Areas, Key Biodiversity Areas, Protected Conservation Areas and Wetlands Ramsar.
     
     Parameters
@@ -456,7 +461,8 @@ async def report_key_area_overlap(
     Returns
     -------
     str
-        Markdown-formatted report summarizing key area overlaps."""
+        Markdown-formatted report summarizing key area overlaps.
+    """
 
     # Get shapefile paths
     shp_paths = get_shp_paths(dir="key_areas", ref=ref)
@@ -474,8 +480,12 @@ async def report_key_area_overlap(
     # Generate reports
     reports = f"""# Key Area Overlap Analysis
 The provided polygon covers an area of {area:,.2f} km².
-Below is an analysis of the key areas that overlap with this polygon.
 """
+    if buffer_km:
+       reports += f"Below is an analysis of the key areas that overlap with this polygon expanded by a {buffer_km}km buffer.\n\n"
+    else:
+        reports += "Below is an analysis of the key areas that overlap with this polygon.\n\n"
+    
     for shp_path in shp_paths:
         # Load gdf and schema
         gdf, schema = load_shapefile_to_gdf(sub_path=shp_path)
@@ -502,7 +512,8 @@ async def report_habitat_overlap(
     polygon_coordinates: list[dict],
     context: Context,
 ) -> str:
-    """Generate a report on habitats that overlap with a given polygon.
+    """
+    Generate a report on habitats that overlap with a given polygon.
     Habitats include: cold- and warm-water coral reefs, kelp, seagrass, wetlands, mangroves, and disturbed mangroves.
     
     Parameters
@@ -514,7 +525,8 @@ async def report_habitat_overlap(
     Returns
     -------
     str
-        Markdown-formatted report summarizing habitat overlaps."""
+        Markdown-formatted report summarizing habitat overlaps.
+    """
 
     # Get shapefile paths
     shp_paths = get_shp_paths(dir="habitats", ref=ref)
@@ -533,6 +545,7 @@ async def report_habitat_overlap(
     reports = f"""# Habitat Overlap Analysis
 The provided polygon covers an area of {area:,.2f} km².
 Below is an analysis of the habitats that overlap with this polygon.
+
 """
     for shp_path in shp_paths:
         # Load gdf and schema
@@ -559,7 +572,8 @@ async def report_exploitation_area_overlap(
     polygon_coordinates: list[dict],
     context: Context,
 ) -> str:
-    """Generate a report on fishing exploitation areas that overlap with a given polygon.
+    """
+    Generate a report on fishing exploitation areas that overlap with a given polygon.
     Exploitation types include: cartilaginous, crustaceans, echinoderms, mollusks, sardines, scale, shrimp and squid.
     
     Parameters
@@ -571,7 +585,8 @@ async def report_exploitation_area_overlap(
     Returns
     -------
     str
-        Markdown-formatted report summarizing fishing exploitation area overlaps."""
+        Markdown-formatted report summarizing fishing exploitation area overlaps.
+    """
 
     # Get shapefile paths
     shp_paths = get_shp_paths(dir="socioeconomic/fishing_exploitation_areas", ref=ref)
@@ -590,6 +605,7 @@ async def report_exploitation_area_overlap(
     reports = f"""# Fishing Exploitation Area Overlap Analysis
 The provided polygon covers an area of {area:,.2f} km².
 Below is an analysis of the fishing exploitation areas that overlap with this polygon.
+
 """
     for shp_path in shp_paths:
         # Load gdf and schema
@@ -617,7 +633,8 @@ async def find_nearby_coastal_communities(
     context: Context,
     buffer_km: float = 0.0,
 ) -> str:
-    """Generate a report of coastal communities located within or near a given polygon.
+    """
+    Generate a report of coastal communities located within or near a given polygon.
     
     Parameters
     ----------
@@ -630,7 +647,8 @@ async def find_nearby_coastal_communities(
     Returns
     -------
     str
-        Markdown-formatted report of nearby coastal communities and their population."""
+        Markdown-formatted report of nearby coastal communities and their population.
+    """
 
     # Set shapefile paths
     shp_paths = ["socioeconomic/coastal_communities/coastal_communities.shp"]
@@ -639,8 +657,19 @@ async def find_nearby_coastal_communities(
     _ = parse_coordinates(polygon_coordinates)
     polygon = Polygon(_)
 
+    # Calculate polygon area
+    area = calculate_geodesic_area(polygon)
+
     # Generate reports
-    reports = ""
+    reports = f"""# Nearby coastal communities and their population
+The provided polygon covers an area of {area:,.2f} km².
+"""
+
+    if buffer_km:
+        reports += f"Below is an analysis of the coastal communities within a {buffer_km}km buffer of the polygon.\n\n"
+    else:
+        reports += "Below is an analysis of the coastal communities within the polygon.\n\n"
+
     for shp_path in shp_paths:
         # Load gdf and schema
         gdf, schema = load_shapefile_to_gdf(sub_path=shp_path)
@@ -656,7 +685,7 @@ async def find_nearby_coastal_communities(
             schema=schema,
             gdf=gdf,
             polygon=polygon,
-            buffer_km=buffer_km
+            buffer_km=buffer_km # BUG: when buffer_km is equal to 0, the query returns no results
         )
 
     return reports
@@ -667,7 +696,8 @@ async def get_human_activity_in_polygon(
     polygon_coordinates: list[dict],
     context: Context,
 ) -> str:
-    """Generate a report summarizing human activities within a given polygon.
+    """
+    Generate a report summarizing human activities within a given polygon.
     Human activities include: diving sites, fishing refuges, and sport fishing areas.
     
     Parameters
@@ -679,7 +709,8 @@ async def get_human_activity_in_polygon(
     Returns
     -------
     str
-        Markdown-formatted report of human activities found within the specified area."""
+        Markdown-formatted report of human activities found within the specified area.
+    """
 
     # Get shapefile paths
     shp_paths = get_shp_paths(dir="socioeconomic/human_activity", ref=ref)
@@ -698,6 +729,7 @@ async def get_human_activity_in_polygon(
     reports = f"""# Human Activity report
 The provided polygon covers an area of {area:,.2f} km².
 This report summarizes the various human activities occurring within this area.
+
 """
     for shp_path in shp_paths:
         # Load gdf and schema
@@ -724,7 +756,8 @@ async def calculate_social_lag_in_polygon(
     polygon_coordinates: list[dict],
     context: Context,
 ) -> str:
-    """Calculate social lag within a given polygon.
+    """
+    Calculate social lag within a given polygon.
     The social lag index measures levels of deprivation across key dimensions of well-being.
     
     Parameters
@@ -736,7 +769,8 @@ async def calculate_social_lag_in_polygon(
     Returns
     -------
     str
-        Average social lag index found within the specified area."""
+        Average social lag index found within the specified area.
+    """
 
     # Set shapefile paths
     shp_paths = ["socioeconomic/social_lag/social_lag.shp"]
@@ -816,12 +850,77 @@ async def get_fauna_in_polygon(
     return reports
 
 
+@mcp.tool()
+def estimate_blue_carbon_mangroves(
+    polygon_coordinates: list[dict],
+    context: Context,
+):
+    """
+    Estimate blue carbon metrics for mangroves within a given polygon.
+
+    Parameters
+    ----------
+    polygon_coordinates : list of dict
+        List of coordinate pairs representing the polygon vertices.
+        Format: [{"lat": float, "lng": float}, ...]
+
+    Returns
+    -------
+    dict
+        A dictionary:
+        - mangrove_area_ha: Total area covered by mangroves in hectares.
+        - total_carbon_Mg: Total carbon stock (Mg C).
+        - annual_sequestration_Mg: Annual carbon sequestration (Mg C/year).
+        - total_carbon_error: Estimated uncertainty of carbon stock (± Mg C).
+        - CO2e: CO₂ equivalent in metric tons (tCO₂e).
+    """
+
+    # Hardcoded model parameters for Baja California, Bahía de la Paz
+    dry_biomass_Mg_ha = 22.0
+    conversion_factor = 0.39
+    soil_carbon_Mg_ha = 175.0
+    annual_sequestration_Mg_ha = 0.39
+    error_pct = 10.0
+
+    # Build base polygon from coordinates
+    _ = parse_coordinates(polygon_coordinates)
+    polygon = Polygon(_)
+
+    # Create GeoDataFrame
+    gdf_clip = gpd.GeoDataFrame(index=[0], geometry=[polygon], crs="EPSG:4326")
+
+    # Load mangrove shapefile
+    gdf_shp, _ = load_shapefile_to_gdf("habitats/mangroves/mangroves.shp")
+
+    # Clip and calculate overlap
+    clip = clip_and_calculate_overlap(gdf_shp, gdf_clip)
+
+    # Model estimates
+    clip["area_ha"] = clip.geometry.area / 10_000.0                                    # Mangrove area in hectares
+    C_biomass_Mg_ha = dry_biomass_Mg_ha * conversion_factor                            # Carbon in aboveground biomass
+    clip["total_carbon_Mg"] = (C_biomass_Mg_ha + soil_carbon_Mg_ha) * clip["area_ha"]  # Total carbon stock (Mg C)
+    clip["annual_sequestration_Mg"] = annual_sequestration_Mg_ha * clip["area_ha"]     # Annual carbon sequestration (Mg C/year)
+    clip["total_carbon_error"] = clip["total_carbon_Mg"] * (error_pct / 100.0)         # Estimated uncertainty (Mg C)
+    clip["CO2e_t"] = clip["total_carbon_Mg"] * 3.67                                    # CO₂ equivalent (tCO₂e) using factor 3.67
+
+    estimates = {
+        "mangrove_area_ha": round(float(clip["area_ha"].sum()), 2),
+        "total_carbon_Mg": round(float(clip["total_carbon_Mg"].sum()), 2),
+        "annual_sequestration_Mg": round(float(clip["annual_sequestration_Mg"].sum()), 2),
+        "total_carbon_error": round(float(clip["total_carbon_error"].sum()), 2),
+        "CO2e_t": round(float(clip["CO2e_t"].sum()), 2),
+    }
+
+    return estimates
+
+
 # --- Run MCP --- #
 
 if __name__ == "__main__":
     # Initialize data cache before starting the server
     asyncio.run(initialize_data())
     
+    # Initialize and run the server
     mcp.run(
         transport="streamable-http",
         host="0.0.0.0",
