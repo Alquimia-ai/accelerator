@@ -63,32 +63,57 @@ def calculate_geodesic_area(polygon: shapely.Polygon) -> float:
     return round(area_km2,2)
 
 
-def csv_to_md(csv_string: str, max_rows: int = 50) -> str:
-    """Convert a CSV string to a Markdown table"""
+def csv_to_md(csv_string: str, max_rows: int = None, truncate: bool = True) -> str:
+    """Convert a CSV string to a Markdown table
+    
+    Args:
+        csv_string: The CSV data as a string
+        max_rows: Maximum number of data rows to include (default: 50 if truncate=True, None if truncate=False)
+        truncate: Whether to enable truncation (default: True)
+    
+    Returns:
+        Formatted Markdown table string
+    """
     reader = csv.reader(StringIO(csv_string.strip()))
     rows = list(reader)
+    
     if not rows:
         return ""
-
+    
     header = rows[0]
     separator = ['---'] * len(header)
-    body = rows[1:max_rows + 1]
-
+    
+    # Handle truncation logic
+    if truncate:
+        # Use provided max_rows or default to 50
+        effective_max_rows = max_rows if max_rows is not None else 50
+        body = rows[1:effective_max_rows + 1]
+        is_truncated = len(rows) - 1 > effective_max_rows
+    else:
+        # Show all rows when truncation is disabled
+        body = rows[1:]
+        is_truncated = False
+    
+    # Build the table
     table = [header, separator] + body
-
-    truncated = len(rows) - 1 > max_rows
-    if truncated:
+    
+    # Add truncation indicator if needed
+    if is_truncated:
         table.append(['...'] * len(header))
-
+    
+    # Convert to markdown format
     md_lines = ['| ' + ' | '.join(row) + ' |' for row in table]
-    if truncated:
-        md_lines.append(f"({len(rows) - 1 - max_rows} rows not shown)")
-
+    
+    # Add truncation note
+    if is_truncated:
+        rows_hidden = len(rows) - 1 - effective_max_rows
+        md_lines.append(f"({rows_hidden} rows not shown)")
+    
     return '\n'.join(md_lines)
 
 
 def count_geoms_in_gdf(gdf: gpd.GeoDataFrame) -> tuple[int]:
-    """..."""
+    """Counts number of polygon/point geometries in a given gdf."""
     polygons, points = 0, 0
     for geom in gdf.geometry:
         if isinstance(geom, MultiPolygon):
@@ -96,7 +121,7 @@ def count_geoms_in_gdf(gdf: gpd.GeoDataFrame) -> tuple[int]:
         elif isinstance(geom, Polygon):
             polygons += 1
         elif isinstance(geom, MultiPoint):
-            points += 1
+            points += len(geom.geoms)
         elif isinstance(geom, Point):
             points += 1
 
@@ -258,7 +283,7 @@ def generate_report_from_gdf(
     # Write report
     if len(df_main):
         csv = df_main.to_csv(index=False)
-        md_table = csv_to_md(csv)
+        md_table = csv_to_md(csv, truncate=False)
     
         multigeom_count = (
             f" -> {polygons} polygons" if "MultiPolygon" in geom_types
@@ -266,15 +291,13 @@ def generate_report_from_gdf(
             else ""
         )
     
-        report = f"""
-## **{schema.get("title", shp_path)}**
+        report = f"""## **{schema.get("title", shp_path)}**
 {md_table}
 
 - **Description**: {schema.get("description", "No description available")}
 - **Total records**: {len(df_main)}
 - **Geometry type(s)**: {', '.join(geom_types)}{multigeom_count}
-- **Data Source**: {schema.get("source", "unknown")}
-"""
+- **Data Source**: {schema.get("source", "unknown")}"""
 
         if extras:
             report += "**Additional insights**:"
@@ -282,13 +305,10 @@ def generate_report_from_gdf(
             for query, extra_df in extras:
                 extra_csv = extra_df.to_csv(index=False)
                 extra_md = csv_to_md(extra_csv)
-                report += f"\n{extra_md}\n"
+                report += f"\n{extra_md}"
 
     else:
-        report = f"""
-## **{schema.get("title", shp_path)}**
-No records found.
-"""
+        report = f"""## **{schema.get("title", shp_path)}**
+No records found."""
 
-    report += "-"*10+"\n" 
-    return report
+    return report+"\n\n"

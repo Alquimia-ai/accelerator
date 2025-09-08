@@ -36,6 +36,9 @@ async def test_tools(polygon_coordinates):
         result = await client.call_tool("get_fauna_in_polygon", {"polygon_coordinates": polygon_coordinates})
         pprint(result[0].text)
 
+        result = await client.call_tool("estimate_blue_carbon_mangroves", {"polygon_coordinates": polygon_coordinates})
+        pprint(result[0].text)
+
 # Polygon coordinatess from Isla Espíritu Santo, Baja California, México
 polygon_coordinates = [
     {"lat": 24.664169, "lng": -110.209952},
