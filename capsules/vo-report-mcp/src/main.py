@@ -399,11 +399,7 @@ async def mpa_feasibility_report(
 
     logger.info("✅ Report URL successfully generated.")
 
-    # Send URL via context
-    if ctx:
-        await ctx.info("MPA_REPORT_READY", extra={"url": url})
-
-    return "Report was generated successfully."
+    return url
 
 
 # --- Run MCP ---
