@@ -1,8 +1,10 @@
 import asyncio
 import json
+import os
 from typing import Any, Dict, List, Optional
 
 import httpx
+import magic
 from aiosseclient import aiosseclient
 from loguru import logger
 
@@ -42,7 +44,7 @@ class AlquimiaClient:
 
     async def stream(self, stream_id):
         async for event in aiosseclient(
-            f"{self.base_url}/stream/{stream_id}",
+            f"{self.base_url}/stream/{stream_id}?response_only=true",
             headers={"Authorization": f"Bearer {self.api_key}"},
             timeout_total=self.event_stream_timeout,
         ):
@@ -51,7 +53,6 @@ class AlquimiaClient:
             except ValueError:
                 pass
 
-            logger.debug(f"Event data: {data}")
             response = data.get("response", None)
             if response:
                 return response["data"]["content"]
@@ -71,12 +72,15 @@ class AlquimiaClient:
 
     async def upload_attachment(self, stream_id, session_id, attachment_id, path):
         logger.debug(f"Sending file as attachment {path}")
+        mime = magic.Magic(mime=True)
+        content_type = mime.from_file(path) or "application/octet-stream"
+
         with open(path, "rb") as _file:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     f"{self.base_url}/attachment/{session_id}/{stream_id}/{attachment_id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    files=dict(file=_file),
+                    files={"file": (os.path.basename(path), _file, content_type)},
                     timeout=self.request_timeout,
                 )
                 response.raise_for_status()
@@ -90,7 +94,6 @@ class AlquimiaClient:
         extra_data={},
     ) -> Dict[str, Any]:
         attachments = attachments or []
-
         payload = {
             "query": query,
             "session_id": self.session_id,
@@ -98,15 +101,11 @@ class AlquimiaClient:
             "force_profile": self.force_profile,
             "attachments": attachments,
         }
-
         retries = 0
         backoff = self.retry_backoff
 
         while True:
             try:
-                logger.debug(
-                    f"Sending inference request to Alquimia (attempt {retries + 1}): {payload}"
-                )
                 async with httpx.AsyncClient() as client:
                     response = await client.post(
                         f"{self.base_url}/infer/{self.source}/{self.assistant_id}",
