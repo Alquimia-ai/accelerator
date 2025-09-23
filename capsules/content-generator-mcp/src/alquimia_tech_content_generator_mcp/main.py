@@ -1,12 +1,12 @@
+import fnmatch
 import json
-import mimetypes
 import os
 import subprocess
-import time
 import uuid
 from pathlib import Path
 from typing import List, Optional
 
+import magic
 from fastmcp import FastMCP
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from loguru import logger
@@ -18,6 +18,7 @@ mcp = FastMCP("Technical content generator MCP")
 
 API_KEY = os.environ.get("API_KEY", None)
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:8080")
+PROJECT_ROOT = os.environ.get("PROJECT_ROOT", "/app/")
 CONTENT_GENERATOR_AGENT_ID = os.environ.get(
     "CONTENT_GENERATOR_AGENT_ID", "code_reviewer"
 )
@@ -76,7 +77,10 @@ async def attach_context(files: list[str]) -> str:
     """
     attachments = []
     for path in filter(os.path.isfile, files):
-        content_type, _ = mimetypes.guess_type(path)
+        # Detect MIME type from file content
+        mime = magic.Magic(mime=True)
+        content_type = mime.from_file(path)
+
         size = os.path.getsize(path)
 
         attachments.append(
@@ -94,88 +98,83 @@ async def attach_context(files: list[str]) -> str:
     for idx, path in enumerate(filter(os.path.isfile, files)):
         await client.upload_attachment(stream_id, SESSION_ID, attachment_ids[idx], path)
 
-    # wait for attachments to complete
-    response = await client.stream(stream_id)
-    logger.debug("Attachment response: %s" % response)
-
     return "Done!"
 
 
 @mcp.tool
-async def create_entire_wiki(
-    project_files: List[str],
-    theme: str,
-    project_insights: str,
-    project_docs_root_path: str,
+async def create_documentation(
+    source_roots: List[str],
+    include_patterns: List[str],
+    exclude_patterns: Optional[List[str]] = None,
+    theme: str = "",
+    project_insights: str = "",
+    project_docs_root_path: str = ".",
 ) -> List[str]:
     """
     Generate a complete wiki-style documentation set for a project.
 
-    This tool analyzes the provided project files, organizes them into
-    thematic topics and subtopics, and generates human-readable markdown
-    documentation around the given **theme** (the central point of interest).
-    The generated documents are stored in the specified output folder.
-
     Args:
-        project_files (List[str]):
-            A list of absolute or relative source code file paths that belong to the project.
-            These files are analyzed and used to build technical documentation.
+        source_roots (List[str]):
+            List of root directories to search for source files.
+            Example: ["src/main/java", "application/src/main/java", "webui/persistence/src/main/java"]
+        include_patterns (List[str]):
+            File patterns to include (e.g., ["**/*.java", "**/*.xml"]).
+        exclude_patterns (List[str], optional):
+            File patterns to exclude (e.g., ["**/target/**", "**/*.class"]).
         theme (str):
-            The main theme or focus area around which the wiki will be structured
-            (e.g., "Data Pipeline", "Authentication System").
+            The main theme or focus area for the wiki (e.g., "System Design").
         project_insights (str):
-            What the project is about. Include relevant data as the project usage (i.e.
-            lib, service, etc) and a brief description.
-        project_docs_root_path (str):
-            Path to the root folder where the generated documentation files
-            will be stored. The function ensures this directory exists.
+            General description/insights about the project.
 
     Returns:
-        List[str]:
-            A list of file paths (strings) corresponding to the generated
-            wiki markdown documents.
-
-    Side Effects:
-        - Creates `.md` files in the specified `project_docs_root_path`.
-        - Each topic and its subtopics are written as separate files.
-
+        List[str]: List of generated markdown file paths.
     """
-    wiki_docs: List[str] = []
+    root_path = Path(PROJECT_ROOT)
+    root_path.mkdir(parents=True, exist_ok=True)
 
-    await attach_context(project_files)
+    all_files: List[Path] = []
 
-    # Ensure root path exists
-    root_path = Path(project_docs_root_path)
-    root_path.mkdir(exist_ok=True)
+    # Search inside each root dir
+    for root in source_roots:
+        base_dir = Path(root)
+        if not base_dir.exists():
+            continue
+        for pattern in include_patterns:
+            all_files.extend(base_dir.rglob(pattern))
 
-    # Validate structure with Pydantic
+    # Apply exclusions
+    if exclude_patterns:
+
+        def is_excluded(path: Path) -> bool:
+            return any(fnmatch.fnmatch(str(path), pat) for pat in exclude_patterns)
+
+        all_files = [f for f in all_files if not is_excluded(f)]
+
+    project_files = [str(f.resolve()) for f in all_files if f.is_file()]
+
+    # Validate structure
     raw_structure = await create_document_structure(
         project_files, theme, project_insights
     )
-
     structure = DocumentationStructure(**raw_structure)
 
+    # Attach context for documentation creation
+    await attach_context(project_files)
+    errors = []
+    wiki_docs: List[str] = []
     for idx, topic in enumerate(structure.topics):
-        # Main topic content
-        page_content = await create_technical_topic_from_files(
+        page_content, ignored = await create_technical_topic_from_files(
             topic.files, f"{theme}: {topic.title}"
         )
+        errors.append(ignored)
 
-        # Save file
-        doc_name = root_path / f"{idx}-{topic.title.replace(' ', '_')}.md"
+        doc_name = root_path / ".alquimia" / f"{idx}-{topic.title.replace(' ', '_')}.md"
         with open(doc_name, "w", encoding="utf-8") as f:
             f.write(page_content)
 
         wiki_docs.append(str(doc_name))
 
-    index = await create_technical_topic_from_files(
-        wiki_docs, f"{theme}: Main index & introduction"
-    )
-    doc_name = root_path / "README.md"
-    with open(doc_name, "w", encoding="utf-8") as f:
-        f.write(index)
-
-    wiki_docs.append(str(doc_name))
+    logger.debug(errors)
     return wiki_docs
 
 
@@ -203,40 +202,71 @@ async def create_document_structure(
         api_key=API_KEY,
     )
 
-    response = await _client.infer(f"""
-        Imagine an ideal  **wiki-style documentation structure** for the given project based on the following structure: {map_files_with_metadata(files)}.
-        The main focus of interest is: `{theme}`.
-        Project insights: `{project_insights}`
+    total_files = len(files)
+    max_topics = 9
+    min_files_per_topic = max(1, total_files // max_topics)
+    max_files_per_topic = max(1, total_files // 2)
+
+    project_structure_instructions = f"""
+        Imagine an ideal **wiki-style documentation structure** for the given project source code files.
+        Focus on generating a **hierarchical tree of topics** that organizes the code logically.
+
+        Context:
+        - Documentation main theme: `{theme}`
+        - Project description: `{project_insights}`
 
         Requirements:
-        - Respond **only in strict JSON format**.
-        - Output must be a hierarchical tree of "topics".
-        - Each "topic" must reference **at least 3 and no more than 5 files**.
-        - Don't repeat the same source code file more than three times between topics.
-        - Ensure all project files are covered in a topic
-        - Consider file sizes and relevance when agrouping topics
-        - Group topics logically to highlight architecture, dependencies, modules, services, integrations, and utilities based on the main foucs of interest.
-        - Each node must contain:
-            - "title": a short descriptive string
-            - "files": a list of file paths
+        1. Respond **strictly in JSON format**, no extra characters or explanations outside the JSON.
+        2. The output must be a top-level object with a key `"topics"` containing a list of topic nodes.
+        3. Each topic node must have:
+           - `"title"`: a short descriptive string summarizing the topic.
+           - `"files"`: a list of relevant source code files use relative paths
+        4. Topic grouping rules:
+           - Maximum number of topics: {max_topics}
+           - Each topic must reference **at least {min_files_per_topic} and no more than {max_files_per_topic} files**.
+           - No single file should appear in more than 3 topics.
+           - Ensure **all project files** are included in at least one topic.
+           - Consider file sizes, dependencies, and logical relevance when grouping.
+           - Group topics to highlight:
+               - Architecture
+               - Modules and services
+               - Integrations and APIs
+               - Utilities, helpers, or common libraries
+        5. JSON output must be **hierarchical if relevant**, showing subtopics or nested relationships based on logical grouping.
 
         Example JSON schema:
         {{
-          "topics": [{{
+          "topics": [
+            {{
               "title": "Architecture",
-              "files": ["file1.py", "file2.py", "file3.py"]
-          }}]
+              "files": ["src/file1.py", "src/file2.py", "src/file3.py"]
+            }},
+            {{
+              "title": "Services",
+              "files": ["src/service1.py", "src/service2.py"]
+            }}
+          ]
         }}
-        Respond only with JSON with no extra characters
-    """)
+
+        Constraints:
+        - Do not include explanations or notes outside the JSON.
+        - Prioritize logical, maintainable grouping over alphabetical order.
+    """
+    logger.debug(project_structure_instructions)
+    response = await _client.infer(
+        project_structure_instructions, extra_data={
+        "project_structure": map_files_with_metadata(files),
+    })
 
     stream_id = response["stream_id"]
     content = await _client.stream(stream_id)
+    logger.debug(f"Project structure response: {content}")
     adict = extract_brace_block(content)
+    logger.debug(adict)
     try:
         return json.loads(adict)
     except:
-        logger.warn("Parsing failed! Trying replacing quotes..")
+        logger.warning("Parsing failed! Trying replacing quotes..")
         return json.loads(adict.replace("'", '"'))
 
 
@@ -246,9 +276,16 @@ async def create_technical_topic_from_files(files: list[str], topic: str) -> str
     """
 
     chunks = []
+    ignored = []
     for f in files:
-        with open(f, "r", encoding="utf-8") as _f:
-            chunks.extend([_f.read()])
+        file_path = Path(PROJECT_ROOT) / f.strip()
+        try:
+            with open(file_path, "r", encoding="utf-8") as _f:
+                chunks.extend([_f.read()])
+        except Exception as ex:
+            logger.warning(f"Couldn't read file {file_path} - ignoring")
+            ignored.append(file_path)
+            continue
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=MAX_INPUT_BATCH_SIZE,
@@ -271,9 +308,8 @@ async def create_technical_topic_from_files(files: list[str], topic: str) -> str
         )
         stream_id = response["stream_id"]
         content = await client.stream(stream_id)
-        time.sleep(2)
 
-    return content
+    return content, ignored
 
 
 async def create_release_notes_from_files(files: list[str]) -> str:

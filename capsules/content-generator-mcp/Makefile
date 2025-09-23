@@ -4,7 +4,7 @@ mkfile_dir := $(dir $(mkfile_path))
 REGISTRY ?= docker.io/alquimiaai
 TAG ?= latest
 ENGINE ?= docker
-PLATFORM ?= linux/amd64
+PLATFORM ?= linux/arm64
 DEPLOY_NAMESPACE ?= alquimia-runtime
 
 .PHONY: build
